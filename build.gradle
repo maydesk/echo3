@@ -1,0 +1,60 @@
+apply plugin: 'java'
+apply plugin: 'maven'
+
+sourceCompatibility = JavaVersion.VERSION_1_4
+def cloudbeesAccountName = 'maydesk'
+def cloudbeesUsername = 'maydesk-deploy'
+def cloudbeesPassword = 'secret111'
+
+configurations {
+	deployerJars
+}
+
+sourceSets {
+	main {
+		java {
+			srcDir 'src/server-java/app'
+			srcDir 'src/server-java/webcontainer'
+		}
+	}
+	
+	test {
+		java {
+			srcDir 'src/server-java/app-test'
+			srcDir 'src/server-java/webcontainer-test'
+		}
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	compile "javax.servlet:servlet-api:2.+"
+	testCompile "junit:junit:4.11"
+}
+
+ant.importBuild 'gradleWrapper.xml'
+ant.properties['servlet.lib.jar'] = configurations.compile.asPath
+defaultTasks 'ant.dist'
+
+clean.dependsOn 'ant.clean'
+
+artifacts {
+	archives jar
+}
+ 
+uploadArchives {
+	repositories {
+		mavenDeployer {
+			configuration = configurations.deployerJars
+			snapshotRepository(url:"dav:https://repository-${cloudbeesAccountName}.forge.cloudbees.com/snapshot/") {
+				authentication(userName: cloudbeesUsername, password: cloudbeesPassword)
+			}
+			repository(url: "dav:https://repository-${cloudbeesAccountName}.forge.cloudbees.com/release/") {
+				authentication(userName: cloudbeesUsername, password: cloudbeesPassword)
+			}
+		}
+	}
+}

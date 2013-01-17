@@ -1,6 +1,7 @@
 apply plugin: 'java'
 apply plugin: 'maven'
 
+group = 'org.maydesk'
 sourceCompatibility = JavaVersion.VERSION_1_4
 def cloudbeesAccountName = 'maydesk'
 def cloudbeesUsername = 'maydesk-deploy'

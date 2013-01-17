@@ -39,15 +39,22 @@ dependencies {
 }
 
 ant.importBuild 'gradleWrapper.xml'
+
+// Ant build file needs the sevrlet.lib.jar to point to the correct location
 ant.properties['servlet.lib.jar'] = configurations.compile.asPath
 defaultTasks 'ant.dist'
 
 clean.dependsOn 'ant.clean'
+uploadArchives.dependsOn 'ant.dist'
+
+def echoAppFile = file(ant.properties['dir.dist.lib'] + '/' + ant.properties['jarfile.echo.app'])
+def echoWebContainerFile = file(ant.properties['dir.dist.lib'] + '/' + ant.properties['jarfile.echo.webcontainer'])
 
 artifacts {
-	archives jar
+	archives file: echoAppFile, name: 'echo3-app', type: 'jar'
+	archives file: echoWebContainerFile, name: 'echo3-webcontainer', type: 'jar'
 }
- 
+
 uploadArchives {
 	repositories {
 		mavenDeployer {
@@ -58,6 +65,15 @@ uploadArchives {
 			repository(url: "dav:https://repository-${cloudbeesAccountName}.forge.cloudbees.com/release/") {
 				authentication(userName: cloudbeesUsername, password: cloudbeesPassword)
 			}
+			addFilter('echo3-app') {artifact, file ->
+				artifact.name == 'echo3-app'
+			}
+			addFilter('echo3-webcontainer') {artifact, file ->
+				artifact.name == 'echo3-webcontainer'
+			}
+			
+			pom('echo3-app').version = ant.properties['release.version']
+			pom('echo3-webcontainer').version = ant.properties['release.version']
 		}
 	}
 }

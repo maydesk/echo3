@@ -48,14 +48,13 @@ defaultTasks 'uploadArchives'
 clean.dependsOn 'ant.clean'
 uploadArchives.dependsOn 'ant.dist'
 
-def app = ant.properties['jarfile.echo.app']
-def echoAppFile = file(ant.properties['dir.dist.lib'] + '/' + app)
+// app and webcontainer variables constitute duplicate names of the ant build file.
+// The ant build file variables contain the version, and that's not suitable for our maven builds 
+def app = 'echo3-app'
+def echoAppFile = file(ant.properties['dir.dist.lib'] + '/' + ant.properties['jarfile.echo.app'])
 
-def webcontainer = ant.properties['jarfile.echo.webcontainer']
-def echoWebContainerFile = file(ant.properties['dir.dist.lib'] + '/' + webcontainer)
-
-app = app.substring(0, app.length() - 4)
-webcontainer = webcontainer.substring(0, webcontainer.length() - 4)
+def webcontainer = 'echo3-webcontainer'
+def echoWebContainerFile = file(ant.properties['dir.dist.lib'] + '/' + ant.properties['jarfile.echo.webcontainer'])
 
 artifacts {
 	archives file: echoAppFile, name: app, type: 'jar'

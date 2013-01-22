@@ -9,6 +9,7 @@ def cloudbeesPassword = 'secret111'
 
 configurations {
 	deployerJars
+	testCompile
 }
 
 sourceSets {
@@ -42,17 +43,23 @@ ant.importBuild 'gradleWrapper.xml'
 
 // Ant build file needs the sevrlet.lib.jar to point to the correct location
 ant.properties['servlet.lib.jar'] = configurations.compile.asPath
-defaultTasks 'ant.dist'
+defaultTasks 'uploadArchives'
 
 clean.dependsOn 'ant.clean'
 uploadArchives.dependsOn 'ant.dist'
 
-def echoAppFile = file(ant.properties['dir.dist.lib'] + '/' + ant.properties['jarfile.echo.app'])
-def echoWebContainerFile = file(ant.properties['dir.dist.lib'] + '/' + ant.properties['jarfile.echo.webcontainer'])
+def app = ant.properties['jarfile.echo.app']
+def echoAppFile = file(ant.properties['dir.dist.lib'] + '/' + app)
+
+def webcontainer = ant.properties['jarfile.echo.webcontainer']
+def echoWebContainerFile = file(ant.properties['dir.dist.lib'] + '/' + webcontainer)
+
+app = app.substring(0, app.length() - 4)
+webcontainer = webcontainer.substring(0, webcontainer.length() - 4)
 
 artifacts {
-	archives file: echoAppFile, name: 'echo3-app', type: 'jar'
-	archives file: echoWebContainerFile, name: 'echo3-webcontainer', type: 'jar'
+	archives file: echoAppFile, name: app, type: 'jar'
+	archives file: echoWebContainerFile, name: webcontainer, type: 'jar'
 }
 
 uploadArchives {
@@ -65,15 +72,15 @@ uploadArchives {
 			repository(url: "dav:https://repository-${cloudbeesAccountName}.forge.cloudbees.com/release/") {
 				authentication(userName: cloudbeesUsername, password: cloudbeesPassword)
 			}
-			addFilter('echo3-app') {artifact, file ->
-				artifact.name == 'echo3-app'
+			addFilter(app) {artifact, file ->
+				artifact.name == app
 			}
-			addFilter('echo3-webcontainer') {artifact, file ->
-				artifact.name == 'echo3-webcontainer'
+			addFilter(webcontainer) {artifact, file ->
+				artifact.name == webcontainer
 			}
 			
-			pom('echo3-app').version = ant.properties['release.version']
-			pom('echo3-webcontainer').version = ant.properties['release.version']
+			pom(app).version = ant.properties['release.version']
+			pom(webcontainer).version = ant.properties['release.version']
 		}
 	}
 }

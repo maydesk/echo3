@@ -63,6 +63,10 @@ Echo.Sync = {
         if (component.getLayoutDirection()) {
             element.dir = component.getLayoutDirection().isLeftToRight() ? "ltr" : "rtl";
         }
+        var boxShadow = component.render("boxShadow");
+        if (boxShadow) {
+          Echo.Sync.BoxShadow.render(boxShadow, element);
+        }
     }
 };
 
@@ -263,7 +267,7 @@ Echo.Sync.Border = {
         if (typeof(border) == "string") {
             // Parse the border.
             var parts = this._PARSER.exec(border);
-            return { size: parts[1], style: parts[2], color: parts[3] };
+            return { size: parts[1], style: parts[2], color: parts[3] }; 
         } else {
             // Parse an individual border side.
             return Echo.Sync.Border.parse(border.top || border.right || border.bottom || border.left);
@@ -371,6 +375,79 @@ Echo.Sync.Border = {
         }
     }
 };
+
+/**
+ * Provides tools for rendering box shadow properties.
+ * @class
+ */
+Echo.Sync.BoxShadow = Core.extend({
+  
+    $static: {
+        STYLE_DEFAULT: "",
+        STYLE_INSET: "inset",
+      
+        /**
+         * Renders a border to a DOM element.
+         * 
+         * @param {#BoxShadow} border the box shadow to render
+         * @param {Element} the target DOM element
+         */
+        render: function(boxShadow, element) {
+            if (!(boxShadow instanceof Echo.Sync.BoxShadow)) {
+                throw new Error("Echo.Sync.BoxShadow.render: unsupported object.");
+            }            
+            element.style["boxShadow"] = boxShadow.toCssValue();
+        },
+        
+        /**
+         * Renders a box shadow to a DOM element, clearing an existing box shadow if the border value is null.
+         * 
+         * @param {#BoxShadow} boxShadow the box shadow to render
+         * @param {Element} the target DOM element
+         */
+        renderClear: function(boxShadow, element) {
+            if (boxShadow) {
+                if (boxShadow instanceof Echo.Sync.BoxShadow) {
+                    element.style.boxShadow = "";
+                }
+                Echo.Sync.BoxShadow.render(boxShadow, element);
+            } else {
+                element.style.boxShadow = "";
+            }
+        }
+    },
+    
+    _hShadowPos: null,
+    _vShadowPos: null,
+    _blur: null,
+    _spread: null,
+    _color: null,
+    _style: null,
+    
+    $construct: function(hShadowPos, vShadowPos, blur, spread, color, style) {
+        if (style !== Echo.Sync.BoxShadow.STYLE_DEFAULT && style !== Echo.Sync.BoxShadow.STYLE_INSET) {
+            throw new Error("Echo.Sync.BoxShadow: unknow style -> " + style);
+        }
+        this._hShadowPos = hShadowPos;
+        this._vShadowPos = vShadowPos;
+        this._blur = blur;
+        this._spread = spread;
+        this._color = color;
+        this._style = style;
+    },
+    
+    /**
+     * Returns a CSS representation of an box shadow value.
+     * 
+     * @return the rendered CSS value
+     * @type String
+     */
+    toCssValue: function() {
+      var cssString = this._hShadowPos + " " + this._vShadowPos + " " + this._blur + " " + 
+                      this._spread + " " + this._color + " " + this._style;
+      return cssString;
+    }
+});
 
 /**
  * Provides tools for rendering color properties.

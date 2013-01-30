@@ -41,6 +41,8 @@ import nextapp.echo.app.Font;
 import nextapp.echo.app.Insets;
 import nextapp.echo.app.event.ActionEvent;
 import nextapp.echo.app.event.ActionListener;
+import nextapp.echo.app.event.EmptyEvent;
+import nextapp.echo.app.event.EmptyListener;
 import nextapp.echo.app.event.DocumentEvent;
 import nextapp.echo.app.event.DocumentListener;
 
@@ -51,6 +53,8 @@ public abstract class TextComponent
 extends Component {
     
     public static final String INPUT_ACTION = "action";
+    public static final String EMPTY_EVENT = "emptyPerformed";
+    public static final String NO_EMPTY_EVENT = "noEmptyPerformed";
 
     public static final String PROPERTY_ACTION_COMMAND = "actionCommand";
     public static final String PROPERTY_ALIGNMENT = "alignment";
@@ -71,9 +75,14 @@ extends Component {
     public static final String PROPERTY_WIDTH = "width";
     
     public static final String ACTION_LISTENERS_CHANGED_PROPERTY = "actionListeners";
+    public static final String EMPTY_LISTENERS_CHANGED_PROPERTY = "emptyListeners";
     public static final String DOCUMENT_CHANGED_PROPERTY = "document";
     public static final String TEXT_CHANGED_PROPERTY = "text";
-    
+    public static final String PROPERTY_AUTOSELECT_CONTENT = "autoSelectContent";
+    public static final String PROPERTY_UPPERCASE = "upperCase";
+    public static final String PROPERTY_LOWERCASE = "lowerCase";
+    public static final String PROPERTY_TRIM      = "trim";
+ 
     private Document document;
     
     /**
@@ -117,6 +126,13 @@ extends Component {
         firePropertyChange(ACTION_LISTENERS_CHANGED_PROPERTY, null, l);
     }
 
+    public void addEmptyListener(EmptyListener l){
+        getEventListenerList().addListener(EmptyListener.class, l);
+        // Notification of empty listener changes is provided due to 
+        // existence of hasEmptyListeners() method. 
+        firePropertyChange(EMPTY_LISTENERS_CHANGED_PROPERTY, null, l);
+    }
+
     /**
      * Fires an action event to all listeners.
      */
@@ -131,6 +147,32 @@ extends Component {
                 e = new ActionEvent(this, (String) getRenderProperty(PROPERTY_ACTION_COMMAND));
             } 
             ((ActionListener) listeners[i]).actionPerformed(e);
+        }
+    }
+
+    /**
+     * Fires an Empty event to all listeners.
+     */
+    private void fireEmptyEvent() {
+        if (!hasEventListenerList()) {
+            return;
+        }
+        EventListener[] listeners = getEventListenerList().getListeners(EmptyListener.class);
+        for (int i = 0; i < listeners.length; ++i) {
+            ((EmptyListener) listeners[i]).emptyPerformed(new EmptyEvent(this));
+        }
+    }
+
+    /**
+     * Fires an NoEmpty event to all listeners.
+     */
+    private void fireNoEmptyEvent() {
+        if (!hasEventListenerList()) {
+            return;
+        }
+        EventListener[] listeners = getEventListenerList().getListeners(EmptyListener.class);
+        for (int i = 0; i < listeners.length; ++i) {
+            ((EmptyListener) listeners[i]).noEmptyPerformed(new EmptyEvent(this));
         }
     }
     
@@ -318,6 +360,15 @@ extends Component {
     public boolean hasActionListeners() {
         return hasEventListenerList() && getEventListenerList().getListenerCount(ActionListener.class) != 0;
     }
+
+    /**
+     * Determines if any <code>EmptyListener</code>s are registered.
+     * 
+     * @return true if any empty listeners are registered
+     */
+    public boolean hasEmptyListeners() {
+        return hasEventListenerList() && getEventListenerList().getListenerCount(EmptyListener.class) != 0;
+    }
     
     /**
      * Determines the editable state of this component. Components that are not
@@ -354,6 +405,10 @@ extends Component {
             setVerticalScroll((Extent) inputValue);
         } else if (INPUT_ACTION.equals(inputName)) {
             fireActionEvent();
+        } else if (NO_EMPTY_EVENT.equals(inputName)) {
+            fireNoEmptyEvent();
+        } else if (EMPTY_EVENT.equals(inputName)) {
+            fireEmptyEvent();
         }
     }
     
@@ -370,6 +425,21 @@ extends Component {
         // Notification of action listener changes is provided due to 
         // existence of hasActionListeners() method. 
         firePropertyChange(ACTION_LISTENERS_CHANGED_PROPERTY, l, null);
+    }
+
+    /**
+     * Removes an <code>EmptyListener</code> from the <code>TextComponent</code>.
+     * 
+     * @param l the <code>EmptyListener</code> to remove
+     */
+    public void removeEmptyListener(EmptyListener l) {
+        if (!hasEventListenerList()) {
+            return;
+        }
+        getEventListenerList().removeListener(EmptyListener.class, l);
+        // Notification of empty listener changes is provided due to 
+        // existence of hasEmptyListeners() method. 
+        firePropertyChange(EMPTY_LISTENERS_CHANGED_PROPERTY, l, null);
     }
     
     /**
@@ -571,5 +641,78 @@ extends Component {
      */
     public void setWidth(Extent newValue) {
         set(PROPERTY_WIDTH, newValue);
+    }
+
+    /**
+      * Returns the autoSelectContnet mode of the text component.
+      *
+      *  @return The {@link #PROPERTY_AUTOSELECT_CONTENT} value.
+      */
+    public boolean getAutoSelectContent() {
+        return ( (Boolean) get( PROPERTY_AUTOSELECT_CONTENT ) ).booleanValue();
+    }
+
+    /**
+      * Set the autoSelectContent mode of the text component.
+      *
+      * @param autoselect_contnet The {@link #PROPERTY_AUTOSELECT_CONTENT} value to set.
+      */
+    public void setAutoSelectContent( final boolean autoselect_contnet ) {
+        set(PROPERTY_AUTOSELECT_CONTENT, Boolean.valueOf(autoselect_contnet));
+    }
+
+    /**
+      * Returns the upppercase mode of the text component.
+      *
+      *  @return The {@link #PROPERTY_UPPERCASE} value.
+      */
+    public boolean getUpperCase() {
+        return ( (Boolean) get( PROPERTY_UPPERCASE ) ).booleanValue();
+    }
+
+    /**
+      * Set the uppercase mode of the text component.
+      *
+      * @param uppercase The {@link #PROPERTY_UPPERCASE} value to set.
+      */
+    public void setUpperCase( final boolean uppercase ) {
+        set(PROPERTY_UPPERCASE, Boolean.valueOf(uppercase));
+    }
+  
+    /**
+      * Returns the lowercase mode of the text component.
+      *
+      *  @return The {@link #PROPERTY_LOWERCASE} value.
+      */
+    public boolean getLowerCase() {
+        return ( (Boolean) get( PROPERTY_LOWERCASE ) ).booleanValue();
+    }
+
+    /**
+      * Set the lowercase mode of the text component.
+      *
+      * @param lowercase The {@link #PROPERTY_LOWERCASE} value to set.
+      */
+    public void setLowerCase( final boolean lowercase ) {
+        set(PROPERTY_LOWERCASE, Boolean.valueOf(lowercase));
+    }
+
+
+    /**
+      * Returns the trim mode of the text component.
+      *
+      *  @return The {@link #PROPERTY_TRIM} value.
+      */
+    public boolean getTrim() {
+        return ( (Boolean) get( PROPERTY_TRIM ) ).booleanValue();
+    }
+
+    /**
+      * Set the trim mode of the text component.
+      *
+      * @param trim The {@link #PROPERTY_TRIM} value to set.
+      */
+    public void setTrim( final boolean trim ) {
+        set(PROPERTY_TRIM, Boolean.valueOf(trim));
     }
 }

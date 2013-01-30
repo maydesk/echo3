@@ -23,7 +23,7 @@ Echo.Sync.TextComponent = Core.extend(Echo.Render.ComponentSync, {
         processBlur: function(e) {
             this._focused = false;
             this._storeSelection();
-            this._storeValue();
+            this._storeValue(e);
             return true;
         },
         
@@ -42,7 +42,7 @@ Echo.Sync.TextComponent = Core.extend(Echo.Render.ComponentSync, {
             }
             return false;
         },
-            
+
         /**
          * Invoked to ensure that input meets requirements of text field.  Default implementation ensures input
          * does not exceed maximum length.
@@ -56,6 +56,30 @@ Echo.Sync.TextComponent = Core.extend(Echo.Render.ComponentSync, {
             }
         }
     },
+
+    /**
+     * Actual upperCase mode of component.
+     * @type Boolean
+     */
+    _upperCase: false,
+
+    /**
+     * Actual lowerCase mode of component.
+     * @type Boolean
+     */
+    _lowerCase: false,
+
+    /**
+     * Actual trim mode of component.
+     * @type Boolean
+     */
+    _trim: false,
+
+    /**
+     * Actual autoSelect mode of component.
+     * @type Boolean
+     */
+    _autoSelectContent: false,
     
     /**
      * The rendered "input" element (may be a textarea).
@@ -88,6 +112,14 @@ Echo.Sync.TextComponent = Core.extend(Echo.Render.ComponentSync, {
      * @type Boolean
      */
     percentWidth: false,
+
+    /**
+     * Flag indicating if the TextComponent is emty.
+     * _emptyListen : true  --> empty
+     * _emptyListen : false --> no empty
+     * @type Boolean
+     */
+    _emptyListen: true,
     
     /**
      * First index of cursor selection.
@@ -101,6 +133,45 @@ Echo.Sync.TextComponent = Core.extend(Echo.Render.ComponentSync, {
      */
     _selectionEnd: 0,
     
+    _deferred_doaction: false,
+
+    tryAutoSelectContent: function() {
+        if( this._autoSelectContent ) this.input.select();
+    },
+    
+    trim: function(str) {
+        var str = str.replace(/^\s\s*/, ''),
+          ws = /\s/,
+          i = str.length;
+        while (ws.test(str.charAt(--i)));
+        return str.slice(0, i + 1);
+    },
+
+    _processInput: function() {
+        if (this._upperCase)
+          this.input.value = this.input.value.toUpperCase();
+        else
+        if (this._lowerCase)
+          this.input.value = this.input.value.toLowerCase();
+
+        if (this._trim) this.input.value = this.trim(this.input.value);
+    },
+
+    _processEmptyListener: function() {
+        if (this.client && this.component.isActive()) {
+          if (this.input.value.length > 0 && this._emptyListen) {
+            this.component.noEmptyInput();
+            this._emptyListen = false;
+          }
+          else {
+            if (this.input.value.length == 0 && !this._emptyListen){
+              this.component.emptyInput();
+              this._emptyListen = true;
+            }
+          }
+        }
+    },
+
     /**
      * Renders style information: colors, borders, font, insets, etc.
      * Sets percentWidth flag.
@@ -143,6 +214,15 @@ Echo.Sync.TextComponent = Core.extend(Echo.Render.ComponentSync, {
         if (toolTipText) {
             this.input.title = toolTipText;
         }
+        this._autoSelectContent = this.component.render("autoSelectContent", false);
+        this._upperCase         = this.component.render("upperCase", false);
+        this._lowerCase         = this.component.render("lowerCase", false);
+        this._trim              = this.component.render("trim", false);
+        if (this._upperCase)
+          this.input.style.textTransform = "uppercase";
+        else
+        if (this._lowerCase)
+          this.input.style.textTransform = "lowercase";
     },
     
     /**
@@ -171,7 +251,7 @@ Echo.Sync.TextComponent = Core.extend(Echo.Render.ComponentSync, {
     clientKeyDown: function(e) {
         this._storeValue(e);
         if (this.client && this.component.isActive()) {
-            if (!this.component.doKeyDown(e.keyCode)) {
+            if (!this.component.doKeyDown(e.keyCode)) { 
                 Core.Web.DOM.preventEventDefault(e.domEvent);
             }
         }
@@ -221,11 +301,12 @@ Echo.Sync.TextComponent = Core.extend(Echo.Render.ComponentSync, {
         }
         return true;
     },
-    
+
     /**
      * Event listener to process input after client input restrictions have been cleared. 
      */
     _processRestrictionsClear: function() {
+
         if (!this.client) {
             // Component has been disposed, do nothing.
             return;
@@ -237,11 +318,18 @@ Echo.Sync.TextComponent = Core.extend(Echo.Render.ComponentSync, {
             this.input.value = this.component.get("text");
             return;
         }
-
+        this._processInput();
         // All-clear, store current text value.
         this.component.set("text", this.input.value, true);
+        this._lastProcessedValue = this.input.value;
+        this._processEmptyListener();
+        if( this._deferred_doaction )
+        {
+          this.component.doAction();
+          this._deferred_doaction = false;
+        }
     },
-
+  
     /**
      * Forcibly resets focus.  Creates hidden focusable text field, focuses it, destroys it.  Then invokes
      * Echo.Render.updateFocus() to re-focus correct component.
@@ -336,6 +424,7 @@ Echo.Sync.TextComponent = Core.extend(Echo.Render.ComponentSync, {
             
         this._focused = true;
         Core.Web.DOM.focusElement(this.input);
+        this.tryAutoSelectContent();
     },
     
     /** @see Echo.Render.ComponentSync#renderUpdate */
@@ -359,7 +448,7 @@ Echo.Sync.TextComponent = Core.extend(Echo.Render.ComponentSync, {
                     }
                 }
                 var editableUpdate = update.getUpdatedProperty("editable");
-                if (editableUpdate != null) {
+                if (editableUpdate) {
                     this.input.readOnly = !editableUpdate.newValue;
                 }
             }
@@ -400,7 +489,8 @@ Echo.Sync.TextComponent = Core.extend(Echo.Render.ComponentSync, {
         this.component.set("selectionStart", this._selectionStart, true);
         this.component.set("selectionEnd", this._selectionEnd, true);
     },
-    
+
+
     /**
      * Stores the current value of the input field, if the client will allow it.
      * If the client will not allow it, but the component itself is active, registers
@@ -417,24 +507,26 @@ Echo.Sync.TextComponent = Core.extend(Echo.Render.ComponentSync, {
             }
             return;
         }
-
         this.sanitizeInput();
         
+        var doaction = (keyEvent && keyEvent.keyCode == 13 && keyEvent.type == "keydown");
+        if( doaction || !this._focused )
+          this._processInput();
+
         if (!this.client.verifyInput(this.component)) {
-            // Component is willing to receive input, but client is not ready:  
+            // Component is willing to receive input, but client is not ready:
             // Register listener to be notified when client input restrictions have been removed, 
             // but allow the change to be reflected in the text field temporarily.
-            this.client.registerRestrictionListener(this.component, Core.method(this, this._processRestrictionsClear)); 
+            if( doaction ) this._deferred_doaction = true;
+            this.client.registerRestrictionListener(this.component, Core.method(this, this._processRestrictionsClear));
             return;
         }
-
         // Component and client are ready to receive input, set the component property and/or fire action event.
         this.component.set("text", this.input.value, true);
         this._lastProcessedValue = this.input.value;
-        
-        if (keyEvent && keyEvent.keyCode == 13 && keyEvent.type == "keydown") {
+        this._processEmptyListener();
+        if (doaction)
             this.component.doAction();
-        }
     }
 });
 
@@ -451,6 +543,7 @@ Echo.Sync.TextArea = Core.extend(Echo.Sync.TextComponent, {
     renderAdd: function(update, parentElement) {
         this.input = document.createElement("textarea");
         this.input.id = this.component.renderId;
+        this._lastProcessedValue = null;
         if (!this.component.render("editable", true)) {
             this.input.readOnly = true;
         }
@@ -491,6 +584,7 @@ Echo.Sync.TextField = Core.extend(Echo.Sync.TextComponent, {
     renderAdd: function(update, parentElement) {
         this.input = document.createElement("input");
         this.input.id = this.component.renderId;
+        this._lastProcessedValue = null;
         if (!this.component.render("editable", true)) {
             this.input.readOnly = true;
         }
@@ -504,7 +598,7 @@ Echo.Sync.TextField = Core.extend(Echo.Sync.TextComponent, {
         if (this.component.get("text")) {
             this.input.value = this.component.get("text");
         }
-        
+
         this.renderAddToParent(parentElement);
     },
 

@@ -33,6 +33,7 @@ import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.EventListener;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 import nextapp.echo.app.event.ActionEvent;
@@ -85,6 +86,7 @@ public class Table extends Component {
     public static final String PROPERTY_SELECTION_FONT = "selectionFont";
     public static final String PROPERTY_SELECTION_FOREGROUND= "selectionForeground";
     public static final String PROPERTY_WIDTH = "width";
+    public static final String PROPERTY_HEIGHT = "height";
     
     public static final String INPUT_ACTION = "action";
 
@@ -110,6 +112,11 @@ public class Table extends Component {
     private ListSelectionModel selectionModel;
     private boolean suppressChangeNotifications;
     private boolean rendering = false;
+    private final PropertyChangeListener child_prop_listener = new PropertyChangeListener() {
+          public void propertyChange(PropertyChangeEvent e) {
+              invalidate();
+          }
+    };
     
     /**
      * Listener to monitor changes to model.
@@ -225,12 +232,7 @@ public class Table extends Component {
         }
         setSelectionModel(new DefaultListSelectionModel());
         setModel(model);
-        
-        addPropertyChangeListener(CHILD_VISIBLE_CHANGED_PROPERTY, new PropertyChangeListener() {
-            public void propertyChange(PropertyChangeEvent e) {
-                invalidate();
-            }
-        });
+        addPropertyChangeListener(CHILD_VISIBLE_CHANGED_PROPERTY, child_prop_listener);
     }
     
     /**
@@ -249,9 +251,20 @@ public class Table extends Component {
      */
     public void add(Component c, int n) throws IllegalChildException {
         if (!rendering) {
-            throw new IllegalStateException("Programmatic addition or removal of Table children is prohibited.");
+            throw new IllegalStateException("Programmatic addition of Table children is prohibited.");
         }
         super.add(c, n);
+        c.addPropertyChangeListener(PROPERTY_LAYOUT_DATA, child_prop_listener);
+    }
+
+    /**
+     * @see nextapp.echo.app.Component#remove(nextapp.echo.app.Component)
+     */
+    public void remove(Component c) {
+        if (!rendering) {
+          c.removePropertyChangeListener(PROPERTY_LAYOUT_DATA, child_prop_listener);
+        }
+        super.remove(c);
     }
 
     /**
@@ -276,13 +289,13 @@ public class Table extends Component {
      */
     public void createDefaultColumnsFromModel() {
         if (model != null) {
-            while (columnModel.getColumnCount() > 0) {
+            while (columnModel.getTotalColumnCount() > 0) {
                 columnModel.removeColumn(columnModel.getColumn(0));
             }
             
-            int columnCount = model.getColumnCount();
+            int columnCount = model.getTotalColumnCount();
             for (int index = 0; index < columnCount; ++index) {
-                columnModel.addColumn(new TableColumn(index));
+                columnModel.addColumn(new TableColumn(index, model.isColumnVisible(index)));
             }
         }
     }
@@ -303,23 +316,28 @@ public class Table extends Component {
         TableColumn[] tableColumns = new TableColumn[columnCount];
         TableCellRenderer[] columnRenderers = new TableCellRenderer[columnCount];
         
-        for (int columnIndex = 0; columnIndex < columnCount; ++columnIndex) {
-            tableColumns[columnIndex] = columnModel.getColumn(columnIndex);
-            
-            TableCellRenderer renderer = tableColumns[columnIndex].getCellRenderer();
-            if (renderer == null) {
-                Class columnClass = model.getColumnClass(tableColumns[columnIndex].getModelIndex());
-                renderer = getDefaultRenderer(columnClass);
+        int columnIndex = 0;
+        for (Iterator iterator = columnModel.getColumns(); iterator.hasNext(); ) {
+            TableColumn tableColumn = (TableColumn) iterator.next();
+            if (tableColumn.isVisible()) {
+                tableColumns[columnIndex] = tableColumn;
+                
+                TableCellRenderer renderer = tableColumn.getCellRenderer();
                 if (renderer == null) {
-                    renderer = DEFAULT_TABLE_CELL_RENDERER;
+                    Class columnClass = model.getColumnClass(tableColumn.getModelIndex());
+                    renderer = getDefaultRenderer(columnClass);
+                    if (renderer == null) {
+                        renderer = DEFAULT_TABLE_CELL_RENDERER;
+                    }
                 }
+                columnRenderers[columnIndex] = renderer;
+  
+                columnIndex++;
             }
-            columnRenderers[columnIndex] = renderer;
-
         }
 
         if (isHeaderVisible()) {
-            for (int columnIndex = 0; columnIndex < columnCount; ++columnIndex) {
+            for (columnIndex = 0; columnIndex < columnCount; ++columnIndex) {
                 int modelColumnIndex = tableColumns[columnIndex].getModelIndex();
                 Object headerValue = tableColumns[columnIndex].getHeaderValue();
                 if (headerValue == null) {
@@ -348,7 +366,7 @@ public class Table extends Component {
         }
         
         for (int rowIndex = 0; rowIndex < rowCount; ++rowIndex) {
-            for (int columnIndex = 0; columnIndex < columnCount; ++columnIndex) {
+            for (columnIndex = 0; columnIndex < columnCount; ++columnIndex) {
                 int modelColumnIndex = tableColumns[columnIndex].getModelIndex();
                 Object modelValue = model.getValueAt(modelColumnIndex, rowIndex);
                 Component renderedComponent 
@@ -542,6 +560,17 @@ public class Table extends Component {
     }
     
     /**
+     * Returns the overall height of the grid.
+     * This property supports <code>Extent</code>s with
+     * fixed or percentile units.
+     * 
+     * @return the height
+     */
+    public Extent getHeight() {
+        return (Extent) get(PROPERTY_HEIGHT);
+    }
+    
+    /**
      * Determines the any <code>ActionListener</code>s are registered.
      * 
      * @return true if any action listeners are registered
@@ -614,16 +643,6 @@ public class Table extends Component {
         }
     }
     
-    /**
-     * @see nextapp.echo.app.Component#remove(nextapp.echo.app.Component)
-     */
-    public void remove(Component c) {
-        if (!rendering) {
-            throw new IllegalStateException("Programmatic addition or removal of Table children is prohibited.");
-        }
-        super.remove(c);
-    }
-
     /**
      * Removes an <code>ActionListener</code> from the <code>Table</code>.
      * <code>ActionListener</code>s will be invoked when the user
@@ -925,6 +944,17 @@ public class Table extends Component {
      */
     public void setWidth(Extent newValue) {
         set(PROPERTY_WIDTH, newValue);
+    }
+    
+    /**
+     * Sets the overall height of the grid.
+     * This property supports <code>Extent</code>s with
+     * fixed or percentile units.
+     * 
+     * @param newValue the new height
+     */
+    public void setHeight(Extent newValue) {
+        set(PROPERTY_HEIGHT, newValue);
     }
     
     /**

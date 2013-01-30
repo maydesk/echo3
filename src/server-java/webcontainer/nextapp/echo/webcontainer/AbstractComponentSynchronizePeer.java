@@ -207,6 +207,18 @@ implements ComponentSynchronizePeer {
             // Should never occur.
             throw new RuntimeException("Internal error.", ex);
         }
+
+        addEvent(new EventPeer(Component.GOT_FOCUS, Component.FOCUS_LISTENERS_CHANGED_PROPERTY) {
+          public boolean hasListeners(Context context, Component c) {
+              return c.hasFocusListeners();
+          }
+        });
+        
+        addEvent(new EventPeer(Component.LOST_FOCUS, Component.FOCUS_LISTENERS_CHANGED_PROPERTY) {
+            public boolean hasListeners(Context context, Component c) {
+                return c.hasFocusListeners();
+            }
+        });
     }
     
     /**

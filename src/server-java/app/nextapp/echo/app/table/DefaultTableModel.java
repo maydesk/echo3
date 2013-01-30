@@ -42,6 +42,7 @@ public class DefaultTableModel extends AbstractTableModel {
 
     private List rows;
     private List columnNames;
+    private List columnVisibilities;
     
     /**
      * Creates a new table model of 0x0 size.
@@ -50,6 +51,7 @@ public class DefaultTableModel extends AbstractTableModel {
         super();
         
         columnNames = new ArrayList();
+        columnVisibilities = new ArrayList();
         rows = new ArrayList();
     }
     
@@ -79,6 +81,7 @@ public class DefaultTableModel extends AbstractTableModel {
         
         if (data == null) {
             columnNames = new ArrayList();
+            columnVisibilities = new ArrayList();
             rows = new ArrayList();
         } else {
             ArrayList rowList;
@@ -90,8 +93,10 @@ public class DefaultTableModel extends AbstractTableModel {
 
             // Add column names
             columnNames = new ArrayList(width);
+            columnVisibilities = new ArrayList(width);
             for (int column = 0; column < width; ++column) {
                 columnNames.add(names[column]);
+                columnVisibilities.add(Boolean.TRUE);
             }
             
             // Add table data
@@ -108,6 +113,15 @@ public class DefaultTableModel extends AbstractTableModel {
         }
     }
     
+    /**public void insertColumn(int column, String name)
+     * Adds a row column with the specified name to the end of the model.
+     *
+     * @param name the name of the new column
+     */
+    public void addColumn(String name) {
+        insertColumn(columnNames.size(), name);
+    }
+    
     /**
      * Adds a row containing the provided data to the end of the model.
      *
@@ -118,11 +132,57 @@ public class DefaultTableModel extends AbstractTableModel {
     }
     
     /**
+     * Deletes the specified column.
+     *
+     * @param column the column to delete
+     */
+    public void deleteColumn(int column) {
+        int columnCount = columnNames.size();
+
+        if (columnCount == 0) {
+            return;
+        }
+
+        if (columnCount == 1) {
+            columnNames.clear();
+            columnVisibilities.clear();
+            rows.clear();
+        }
+        else {
+            if (column < 0) {
+                column = 0;
+            }
+            else if (column >= columnCount) {
+                column = columnCount - 1;
+            }
+    
+            columnNames.remove(column);
+            columnVisibilities.remove(column);
+            for (int rowIndex = 0; rowIndex < rows.size(); ++rowIndex) {
+                ((List) rows.get(rowIndex)).remove(column);
+            }
+        }
+
+        fireTableStructureChanged();
+    }
+    
+    /**
      * Deletes the specified row.
      *
      * @param row the row to delete
      */
     public void deleteRow(int row) {
+        if( rows.size() == 0 ) {
+            return;
+        }
+
+        if (row < 0) {
+            row = 0;
+        }
+        else if (row >= rows.size()) {
+            row = rows.size() - 1;
+        }
+
         rows.remove(row);
         fireTableRowsDeleted(row, row);
     }
@@ -131,21 +191,25 @@ public class DefaultTableModel extends AbstractTableModel {
      * @see nextapp.echo.app.table.TableModel#getColumnCount()
      */
     public int getColumnCount() {
-        return columnNames.size();
+        int count = 0;
+        for (int columnIndex = 0; columnIndex < columnNames.size(); ++columnIndex) {
+            if (isColumnVisible(columnIndex)) {
+              count++;
+            }
+        }
+
+        return count;
     }
 
     /**
      * @see nextapp.echo.app.table.TableModel#getColumnName(int)
      */
     public String getColumnName(int column) {
-        String name = null;
-        if (column < columnNames.size()) {
-            name = (String) columnNames.get(column);
+        if (column < 0 || column >= columnNames.size()) {
+            throw new ArrayIndexOutOfBoundsException("Table column " + column + " does not exist.");
         }
-        if (name == null) {
-            name = super.getColumnName(column);
-        }
-        return name;
+
+        return (String) columnNames.get(column);
     }
     
     /**
@@ -153,6 +217,13 @@ public class DefaultTableModel extends AbstractTableModel {
      */
     public int getRowCount() {
         return rows.size();
+    }
+
+    /**
+     * @see nextapp.echo.app.table.TableModel#getTotalColumnCount()
+     */
+    public int getTotalColumnCount() {
+        return columnNames.size();
     }
     
     /**
@@ -181,12 +252,42 @@ public class DefaultTableModel extends AbstractTableModel {
     }
     
     /**
+     * Inserts a column in the table.
+     *
+     * @param column the insertion index
+     * @param name the name of the column
+     */
+    public void insertColumn(int column, String name) {
+        if (column < 0) {
+            column = 0;
+        }
+        else if (column > columnNames.size()) {
+            column = columnNames.size();
+        }
+
+        columnNames.add(column, name);
+        columnVisibilities.add(column, Boolean.TRUE);
+        for (int rowIndex = 0; rowIndex < rows.size(); ++rowIndex) {
+            ((List) rows.get(rowIndex)).add(column, null);
+        }
+
+        fireTableStructureChanged();
+    }
+    
+    /**
      * Inserts a row containing the provided data.
      *
      * @param row the insertion index
      * @param rowData the row data
      */
     public void insertRow(int row, Object[] rowData) {
+        if (row < 0) {
+            row = 0;
+        }
+        else if (row > rows.size()) {
+            row = rows.size();
+        }
+
         int maxIndex = rowData.length > columnNames.size() ? columnNames.size() : rowData.length;
         List rowList = new ArrayList(columnNames.size());
     
@@ -195,8 +296,18 @@ public class DefaultTableModel extends AbstractTableModel {
         }
 
         rows.add(row, rowList);
-        
         fireTableRowsInserted(row, row);
+    }
+
+    /**
+     * @see nextapp.echo.app.table.TableModel#isColumnVisible(int)
+     */
+    public boolean isColumnVisible(int column) {
+        if (column < 0 || column > columnNames.size()) {
+            throw new ArrayIndexOutOfBoundsException("Table column " + column + " does not exist.");
+        }
+
+        return ((Boolean) columnVisibilities.get(column)).booleanValue();
     }
     
     /**
@@ -208,12 +319,28 @@ public class DefaultTableModel extends AbstractTableModel {
      * @param newValue the new column count
      */
     public void setColumnCount(int newValue) {
-        while (columnNames.size() > newValue) {
-            columnNames.remove(columnNames.size() - 1);
+        if (newValue <= 0) {
+            columnNames.clear();
+            columnVisibilities.clear();
+            rows.clear();
         }
-        
-        while (columnNames.size() < newValue) {
-            columnNames.add(null);
+        else {
+            while (columnNames.size() > newValue) {
+                int columnIndex = columnNames.size() - 1;
+                columnNames.remove(columnIndex);
+                columnVisibilities.remove(columnIndex);
+                for (int rowIndex = 0; rowIndex < rows.size(); ++rowIndex) {
+                    ((List) rows.get(rowIndex)).remove(columnIndex);
+                }
+            }
+            
+            while (columnNames.size() < newValue) {
+                columnNames.add(null);
+                columnVisibilities.add(Boolean.TRUE);
+                for (int rowIndex = 0; rowIndex < rows.size(); ++rowIndex) {
+                    ((List) rows.get(rowIndex)).add(null);
+                }
+            }
         }
         
         fireTableStructureChanged();
@@ -226,8 +353,29 @@ public class DefaultTableModel extends AbstractTableModel {
      * @param columnName the new column name
      */
     public void setColumnName(int column, String columnName) {
+        if (column < 0 || column >= columnNames.size()) {
+            throw new ArrayIndexOutOfBoundsException("Table column " + column + " does not exist.");
+        }
+
         columnNames.set(column, columnName);
+        fireTableStructureChanged();
     }
+    
+    /**
+     * Sets the visibility of the specified column.
+     * 
+     * @param column the column index
+     * @param visible the new column visibility
+     */
+    public void setColumnVisible(int column, Boolean visible) {
+        if (column < 0 || column >= columnNames.size()) {
+            throw new ArrayIndexOutOfBoundsException("Table column " + column + " does not exist.");
+        }
+
+        columnVisibilities.set(column, visible);
+        fireTableStructureChanged();
+    }
+
 
     /**
      * Sets the number of rows in the table.
@@ -238,13 +386,17 @@ public class DefaultTableModel extends AbstractTableModel {
      * @param newValue the new row count
      */
     public void setRowCount(int newValue) {
-        // Remove excess rows
-        while (rows.size() > newValue) {
-            rows.remove(rows.size() - 1);
+        if (newValue <=0) {
+            rows.clear();
         }
-        
-        while (rows.size() < newValue) {
-            rows.add(null);
+        else {
+            while (rows.size() > newValue) {
+                rows.remove(rows.size() - 1);
+            }
+            
+            while (rows.size() < newValue) {
+                rows.add(null);
+            }
         }
         
         fireTableDataChanged();
@@ -260,7 +412,7 @@ public class DefaultTableModel extends AbstractTableModel {
      *         exceed the column or row count
      */
     public void setValueAt(Object newValue, int column, int row) {
-        if (rows.size() < row || columnNames.size() < column) {
+        if (row < 0 || row >= rows.size() || column < 0 || column >= columnNames.size()) {
             throw new ArrayIndexOutOfBoundsException("Table coordinate (" + column + ", " + row + ") does not exist");
         }
 
@@ -274,8 +426,7 @@ public class DefaultTableModel extends AbstractTableModel {
             rowList.add(null);
         }
         
-        rowList.set(column, newValue);
-        
+        rowList.set(column, newValue);        
         fireTableCellUpdated(column, row);
     }
 }

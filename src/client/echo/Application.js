@@ -132,6 +132,8 @@ Echo.Application = Core.extend({
      * @type Echo.FocusManager
      */
     focusManager: null,
+
+    _pending_lfevents: null,
     
     /**
      * Creates a new application instance.  
@@ -146,6 +148,7 @@ Echo.Application = Core.extend({
         this._modalComponents = [];
         this.updateManager = new Echo.Update.Manager(this);
         this.focusManager = new Echo.FocusManager(this);
+        this._pending_lfevents = [];
     },
 
     /**
@@ -157,6 +160,10 @@ Echo.Application = Core.extend({
      */
     addListener: function(eventType, eventTarget) {
         this._listenerList.addListener(eventType, eventTarget);
+    },
+			       
+    hasComponentUpdateListeners: function() {
+      return this._listenerList.hasListeners("componentUpdate");
     },
     
     /**
@@ -314,7 +321,9 @@ Echo.Application = Core.extend({
             this._listenerList.fireEvent({type: "componentUpdate", parent: parent, propertyName: propertyName, 
                     oldValue: oldValue, newValue: newValue});
         }
-        if (!rendered) {
+        // only if parent is rendered (peer is loaded) OR componentType is Root
+		// Echo.Component that have componentType == "Root" their peers are loaded from Render.processUpdates(client))
+        if ((parent.peer || parent.componentType == "Root") && !rendered) {
             this.updateManager._processComponentUpdate(parent, propertyName, oldValue, newValue);
         }
     },
@@ -355,7 +364,7 @@ Echo.Application = Core.extend({
      */
     setFocusedComponent: function(newValue) {
         var oldValue = this._focusedComponent;
-        
+
         // If required, find focusable parent containing 'newValue'.
         while (newValue != null && !newValue.focusable) {
             newValue = newValue.parent;
@@ -376,8 +385,25 @@ Echo.Application = Core.extend({
         
         this._focusedComponent = newValue;
         this._listenerList.fireEvent({type: "focus", source: this, oldValue: oldValue, newValue: newValue });
+
+        if( oldValue != null )
+          if( this.client.hasRestrictionListener(oldValue) )
+          {
+            this.client.registerRemoveInputRestrictionListener( Core.method(this, this._removeInputRestrictionListener) );
+            this._pending_lfevents.push(oldValue);
+          }
+          else
+            oldValue.lostFocus();
+
+        if( this._focusedComponent != null )
+          this._focusedComponent.gotFocus();
     },
     
+    _removeInputRestrictionListener: function() {
+      while(this._pending_lfevents.length >  0)
+        this._pending_lfevents.shift().lostFocus();
+    },
+
     /**
      * Sets the application default layout direction.
      * 
@@ -596,7 +622,21 @@ Echo.Component = Core.extend({
          *  Flag indicating whether component is rendered as a pane (pane components consume available height).
          *  @type Boolean 
          */
-        pane: false
+        pane: false,
+
+        /**
+         * Programmatically performs a component action: "got focus".
+         */
+        gotFocus: function() {
+            this.fireEvent({type: "gotFocus", source: this});
+        },
+        
+        /**
+         * Programmatically performs a component action: "lost focus" .
+         */
+        lostFocus: function() {
+            this.fireEvent({type: "lostFocus", source: this});
+        }
     },
     
     /**
@@ -772,13 +812,13 @@ Echo.Component = Core.extend({
      * @param {Function} eventTarget the method to invoke when the event occurs 
      *        (the event will be passed as the single argument)
      */
-    addListener: function(eventType, eventTarget) {
+    addListener: function(eventType, eventTarget, rendered) {
         if (this._listenerList == null) {
             this._listenerList = new Core.ListenerList();
         }
         this._listenerList.addListener(eventType, eventTarget);
         if (this.application) {
-            this.application.notifyComponentUpdate(this, "listeners", null, eventType);
+            this.application.notifyComponentUpdate(this, "listeners", null, eventType, rendered);
         }
     },
     
@@ -1200,13 +1240,23 @@ Echo.Component = Core.extend({
      * @param {Function} eventTarget the method to invoke when the event occurs 
      *        (the event will be passed as the single argument)
      */
-    removeListener: function(eventType, eventTarget) {
+    removeListener: function(eventType, eventTarget, rendered) {
         if (this._listenerList == null) {
             return;
         }
         this._listenerList.removeListener(eventType, eventTarget);
         if (this.application) {
-            this.application.notifyComponentUpdate(this, "listeners", eventType, null);
+            this.application.notifyComponentUpdate(this, "listeners", eventType, rendered);
+        }
+    },
+    
+    removeAllListeners: function(eventType, rendered) {
+        if (this._listenerList == null) {
+            return;
+        }
+        this._listenerList.removeAllListeners(eventType);
+        if (this.application) {
+            this.application.notifyComponentUpdate(this, "listeners", eventType, rendered);
         }
     },
     
@@ -1888,6 +1938,11 @@ Echo.Update.ComponentUpdate = Core.extend({
      * the notion that listeners of a type have been added or removed.
      */
     _listenerUpdates: null,
+    
+    /**
+     * Indicates that current update is processed.
+     */
+    _processed: false,
 
     /**
      * Creates a new ComponentUpdate.
@@ -2089,6 +2144,40 @@ Echo.Update.ComponentUpdate = Core.extend({
     },
     
     /**
+     * Determines if any children had their update during this update.
+     *
+     * @return true if manager who serves this update contains updates for the children
+     * @type Boolean
+     */
+    hasUpdatedChildren: function() {
+        for (var i = 0; i < this.parent.children.length; ++i) {
+            if (this._manager._componentUpdateMap[this.parent.children[i].renderId]) {
+                return true;
+            }
+        }
+        return false;
+    },
+        
+    /**
+     * Returns a collection of <code>Echo.Update.ComponentUpdate</code> 
+     * contains child's update during this update.
+     *
+     * @return updates of all updated children during this update
+     * @type Array
+     */
+    getChildrenUpdate: function() {
+        var updates = [];
+        for (var i = 0; i < this.parent.children.length; ++i) {
+            var update = this._manager._componentUpdateMap[this.parent.children[i].renderId];
+            if (update) {
+                updates.push(update);
+            }
+        }
+        return updates;
+    },
+    
+    
+    /**
      * Determines if any listeners of a specific type were added or removed
      * from the component.
      * 
@@ -2135,7 +2224,7 @@ Echo.Update.ComponentUpdate = Core.extend({
         }
         return false;
     },
-
+    
     /**
      * Determines if the set of updated property names is contained
      * within the specified set.  The provided object should have
@@ -2206,23 +2295,6 @@ Echo.Update.ComponentUpdate = Core.extend({
     },
     
     /**
-     * Returns a string representation.
-     * 
-     * @return a string representation
-     * @type String
-     */
-    toString: function() {
-        var s = "ComponentUpdate\n";
-        s += "- Parent: " + this.parent + "\n";
-        s += "- Adds: " + this._addedChildIds + "\n";
-        s += "- Removes: " + this._removedChildIds + "\n";
-        s += "- DescendantRemoves: " + this._removedDescendantIds + "\n";
-        s += "- Properties: " + Core.Debug.toString(this._propertyUpdates) + "\n";
-        s += "- LayoutDatas: " + this._updatedLayoutDataChildIds + "\n";
-        return s;
-    },
-    
-    /**
      * Records the update of the LayoutData of a child component.
      * 
      * @param {Echo.Component} child the child component whose layout data was updated
@@ -2260,6 +2332,41 @@ Echo.Update.ComponentUpdate = Core.extend({
         }
         var propertyUpdate = new Echo.Update.ComponentUpdate.PropertyUpdate(oldValue, newValue);
         this._propertyUpdates[propertyName] = propertyUpdate;
+     },
+    
+    /**
+     * Mark a current update as processed. (from Echo.Render.processUpdates(client))
+     */
+    markAsProcessed: function() {
+        this._processed = true;
+    },
+    
+
+    /**
+     * Checks whether the current update is processed!
+     *
+     * @return processed whether or not
+     * @type boolean
+     */
+    isProcessed: function() {
+        return this._processed;
+    },
+    
+    /**
+     * Returns a string representation.
+     * 
+     * @return a string representation
+     * @type String
+     */
+    toString: function() {
+        var s = "ComponentUpdate\n";
+        s += "- Parent: " + this.parent + "\n";
+        s += "- Adds: " + this._addedChildIds + "\n";
+        s += "- Removes: " + this._removedChildIds + "\n";
+        s += "- DescendantRemoves: " + this._removedDescendantIds + "\n";
+        s += "- Properties: " + Core.Debug.toString(this._propertyUpdates) + "\n";
+        s += "- LayoutDatas: " + this._updatedLayoutDataChildIds + "\n";
+        return s;
     }
 });
 
@@ -2607,16 +2714,29 @@ Echo.Update.Manager = Core.extend({
     },
 
     /**
-     * Purges all updates from the manager.
+     * Purges updates that are processed from the manager.
      * Invoked after the client has repainted the screen.
      */
     purge: function() {
-        this.fullRefreshRequired = false;
-        this._componentUpdateMap = { };
-        this._idMap = { };
-        this._removedIdMap = { };
-        this._hasUpdates = false;
-        this._lastAncestorTestParentId = null;
+        var key = null;
+		this._hasUpdates = false;
+        for (key in this._componentUpdateMap) {
+            var update = this._componentUpdateMap[key];
+            if (update.isProcessed()) {                
+                delete this._componentUpdateMap[key];
+                delete this._idMap[update.parent.renderId];
+                delete this._removedIdMap[update.parent.renderId];
+            }
+            else {
+				// has unprocessed updates (e.g: set property from renderUpdate(update))
+				this._hasUpdates = true;
+            }
+        }
+        
+        if (!this._hasUpdates) {
+			this.fullRefreshRequired = false;
+			this._lastAncestorTestParentId = null;
+        }
     },
     
     /**
@@ -3400,7 +3520,15 @@ Echo.TextComponent = Core.extend(Echo.Component, {
         doAction: function() {
             this.fireEvent({type: "action", source: this, actionCommand: this.get("actionCommand")});
         },
+
+        emptyInput: function() {
+            this.fireEvent({type: "emptyPerformed", source: this});
+        },
         
+        noEmptyInput: function() {
+            this.fireEvent({type: "noEmptyPerformed", source: this});
+        },
+
         /**
          * Notifies listeners of a key down event.
          * 
@@ -3422,6 +3550,18 @@ Echo.TextComponent = Core.extend(Echo.Component, {
             var e = { type: "keyPress", source: this, keyCode: keyCode, charCode: charCode };
             this.fireEvent(e);
             return !e.veto;
+        },
+
+        /** @see Echo.Component#lostFocus */
+        lostFocus: function() {
+            try { this.peer.processBlur(null); } catch(e) {}
+            Echo.Component.prototype.lostFocus.call(this);
+        },
+
+        /** @see Echo.Component#gotFocus */
+        gotFocus: function() {
+            try {  this.peer.tryAutoSelectContent(); } catch(e) {}
+            Echo.Component.prototype.gotFocus.call(this);
         }
     },
 

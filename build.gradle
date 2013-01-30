@@ -2,7 +2,7 @@ apply plugin: 'java'
 apply plugin: 'maven'
 
 group = 'org.maydesk'
-sourceCompatibility = JavaVersion.VERSION_1_4
+sourceCompatibility = JavaVersion.VERSION_1_6
 def cloudbeesAccountName = 'maydesk'
 def cloudbeesUsername = 'maydesk-deploy'
 def cloudbeesPassword = 'secret111'
@@ -12,6 +12,10 @@ configurations {
 	testCompile
 }
 
+ repositories {
+	mavenCentral()
+}
+    
 sourceSets {
 	main {
 		java {
@@ -33,7 +37,7 @@ repositories {
 }
 
 dependencies {
-	compile "javax.servlet:servlet-api:2.+"
+	compile "javax.servlet:servlet-api:2.5"
 	testCompile "junit:junit:4.11"
 	deployerJars 'org.apache.maven.wagon:wagon-webdav:1.0-beta-2'
 	deployerJars 'org.apache.maven:maven-ant-tasks:2.1.0'

@@ -29,45 +29,15 @@
 
 package nextapp.echo.webcontainer.service;
 
-import java.io.IOException;
-import java.security.AccessControlException;
 
-import nextapp.echo.webcontainer.Connection;
-import nextapp.echo.webcontainer.Service;
-import nextapp.echo.webcontainer.util.GZipCompressor;
-import nextapp.echo.webcontainer.util.JavaScriptCompressor;
+import nextapp.echo.webcontainer.ContentType;
 import nextapp.echo.webcontainer.util.Resource;
 
 /**
  * A service which renders <code>JavaScript</code> resource files.
  */
-public class JavaScriptService 
-implements Service {
-
-    // Toggle to enable GZIP compression for MS IE Browser via system property 'echo.allowiecompression'
-    private static final boolean ALLOW_IE_COMPRESSION;
-    static {
-        boolean allowiecompression = false;
-        try {
-            if ("true".equals(System.getProperty("echo.allowiecompression"))) {
-                allowiecompression = true;
-            }
-        }
-        catch (AccessControlException ignored) {} // if running under a security manager
-        ALLOW_IE_COMPRESSION = allowiecompression;
-    }
-    // Toggle to disable JavaScript compression via system property 'echo.javascript.compression'
-    private static final boolean JAVASCRIPT_COMPRESSION_ENABLED;
-    static {
-        Boolean value = Boolean.FALSE;
-        try {
-            value = Boolean.valueOf(System.getProperty("echo.javascript.compression", Boolean.TRUE.toString()));
-        } catch (SecurityException ex) {
-            System.err.println("SystemProperty 'echo.javascript.compression.disabled' not set, SecurityException " + ex.getMessage());
-        }
-        JAVASCRIPT_COMPRESSION_ENABLED = value.booleanValue();
-    }
-
+public class JavaScriptService extends DefaultStringVersionService {
+    
     /**
      * Creates a new <code>JavaScript</code> service from the specified
      * resource in the <code>CLASSPATH</code>.
@@ -91,15 +61,6 @@ implements Service {
         return new JavaScriptService(id, out.toString());
     }
 
-    /** <code>Service</code> identifier. */
-    private String id;
-    
-    /** The JavaScript content in plain text. */
-    private String content;
-    
-    /** The JavaScript content in GZip compressed form. */
-    private byte[] gzipContent;
-    
     /**
      * Creates a new <code>JavaScriptService</code>.
      * 
@@ -107,78 +68,14 @@ implements Service {
      * @param content the <code>JavaScript content</code>
      */
     public JavaScriptService(String id, String content) {
-        super();
-        this.id = id;
-        this.content = JAVASCRIPT_COMPRESSION_ENABLED ? JavaScriptCompressor.compress(content) : content;
-        try {
-            gzipContent = GZipCompressor.compress(this.content);
-        } catch (IOException ex) {
-            // Should not occur.
-            throw new RuntimeException("Exception compressing JavaScript source.", ex);
-        }
+        super(id, content);
     }
-    
+
     /**
-     * @see Service#getId()
+     * @see DefaultStringVersionService#getContnentType()
      */
-    public String getId() {
-        return id;
-    }
-    
-    /**
-     * <code>DO_NOT_CACHE</code> is returned for <code>JavaScript</code>
-     * to avoid possibility of ever running out-of-date JavaScript in the
-     * event an application is updated and redeployed. 
-     * 
-     * @see Service#getVersion()
-     */
-    public int getVersion() {
-        return DO_NOT_CACHE;
-    }
-    
-    /**
-     * @see Service#service(nextapp.echo.webcontainer.Connection)
-     */
-    public void service(Connection conn) 
-    throws IOException {
-        String userAgent = conn.getRequest().getHeader("user-agent");
-        if (!ALLOW_IE_COMPRESSION && (userAgent == null || userAgent.indexOf("MSIE") != -1)) {
-            // Due to behavior detailed Microsoft Knowledge Base Article Id 312496, 
-            // all HTTP compression support is disabled for this browser.
-            // Due to the fact that ClientProperties information is not necessarily 
-            // available at this stage, browsers which provide deceitful user-agent 
-            // headers will also be affected.
-            servicePlain(conn);
-        } else {
-            String acceptEncoding = conn.getRequest().getHeader("accept-encoding");
-            if (acceptEncoding != null && acceptEncoding.indexOf("gzip") != -1) {
-                serviceGZipCompressed(conn);
-            } else {
-                servicePlain(conn);
-            }
-        }
-    }
-    
-    /**
-     * Renders the JavaScript resource using GZip encoding.
-     * 
-     * @param conn the relevant <code>Connection</code>
-     */
-    private void serviceGZipCompressed(Connection conn) 
-    throws IOException {
-        conn.getResponse().setContentType("text/plain");
-        conn.getResponse().setHeader("Content-Encoding", "gzip");
-        conn.getOutputStream().write(gzipContent);
-    }
-    
-    /**
-     * Renders the JavaScript resource WITHOUT using GZip encoding.
-     * 
-     * @param conn the relevant <code>Connection</code>
-     */
-    private void servicePlain(Connection conn) 
-    throws IOException {
-        conn.getResponse().setContentType("text/plain");
-        conn.getWriter().print(content);
+    @Override
+    ContentType getContnentType() {
+        return ContentType.TEXT_JAVASCRIPT;
     }
 }

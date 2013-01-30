@@ -38,6 +38,10 @@ Echo.Sync.ContentPane = Core.extend(Echo.Render.ComponentSync, {
     /** Constructor. */
     $construct: function() {
         this._floatingPaneStack = [];
+        this._layer_holder = [];
+        this._layer = document.createElement("div");
+        this._layer.style.cssText = 'position:absolute; top: 0px; left: 0px; width: 100%; height: 100%; display: none;\n\
+                                     background: #000000; opacity: .4; filter: alpha(opacity=40);-ms-filter: "alpha(opacity=40)"';
     },
     
     /**
@@ -64,13 +68,11 @@ Echo.Sync.ContentPane = Core.extend(Echo.Render.ComponentSync, {
         Core.Arrays.remove(this._floatingPaneStack, child);
         this._floatingPaneStack.push(child);
         this._renderFloatingPaneZIndices();
-        this._storeFloatingPaneZIndices();
+        //this._storeFloatingPaneZIndices();
     },
     
     /** @see Echo.Render.ComponentSync#renderAdd */
     renderAdd: function(update, parentElement) {
-        var i;
-        
         this._div = document.createElement("div");
         this._div.id = this.component.renderId;
         this._div.style.position = "absolute";
@@ -92,13 +94,13 @@ Echo.Sync.ContentPane = Core.extend(Echo.Render.ComponentSync, {
         this._childIdToElementMap = {};
         
         var componentCount = this.component.getComponentCount();
-        for (i = 0; i < componentCount; ++i) {
+        for (var i = 0; i < componentCount; ++i) {
             var child = this.component.getComponent(i);
             this._renderAddChild(update, child);
         }
     
         // Store values of horizontal/vertical scroll such that 
-        // renderDisplay() will adjust scrollbars appropriately after rendering.
+        // renderDisplay() will adjust scrollbars appropriately after renderi  ng.
         this._pendingScrollX = this.component.render("horizontalScroll");
         this._pendingScrollY = this.component.render("verticalScroll");
         
@@ -107,6 +109,7 @@ Echo.Sync.ContentPane = Core.extend(Echo.Render.ComponentSync, {
         if (this._zIndexRenderRequired) {
             this._renderFloatingPaneZIndices();
         }
+        this._div.appendChild(this._layer);
     },
 
     /**
@@ -120,23 +123,22 @@ Echo.Sync.ContentPane = Core.extend(Echo.Render.ComponentSync, {
         this._childIdToElementMap[child.renderId] = childDiv;
         childDiv.style.position = "absolute";
         if (child.floatingPane) {
-            var zIndex = child.render("zIndex");
-            if (zIndex != null) {
-                var added = false;
-                var i = 0;
-                
-                while (i < this._floatingPaneStack.length && !added) {
-                    var testZIndex = this._floatingPaneStack[i].render("zIndex");
-                    if (testZIndex != null && testZIndex > zIndex) {
-                        this._floatingPaneStack.splice(i, 0, child);
-                        added = true;
-                    }
-                    ++i;
-                }
-                if (!added) {
-                    this._floatingPaneStack.push(child);
-                }
-            } else {
+            var zIndex = child.render("zIndex", 1);
+            var added = false;
+            var i = 0;
+            if (! (child.modalSupport && child.get("modal"))) {
+
+              while (i < this._floatingPaneStack.length && !added) {
+                  var testZIndex = this._floatingPaneStack[i].render("zIndex");
+                  if (testZIndex != null && testZIndex > zIndex) {
+                      this._floatingPaneStack.splice(i, 0, child);
+                      added = true;
+                  }
+                  ++i;
+              }
+            }
+            
+            if (!added) {
                 this._floatingPaneStack.push(child);
             }
             childDiv.style.zIndex = "1";
@@ -238,6 +240,8 @@ Echo.Sync.ContentPane = Core.extend(Echo.Render.ComponentSync, {
     renderDispose: function(update) {
         this._childIdToElementMap = null;
         this._div = null;
+        this._layer = null;
+        this._layer_holder = null;
     },
     
     /** 
@@ -245,9 +249,24 @@ Echo.Sync.ContentPane = Core.extend(Echo.Render.ComponentSync, {
      * <code>_floatingPaneStack.</code>. 
      */ 
     _renderFloatingPaneZIndices: function() {
+        this._layer_holder = [];
         for (var i = 0; i < this._floatingPaneStack.length; ++i) {
-            var childElement = this._childIdToElementMap[this._floatingPaneStack[i].renderId];
-            childElement.style.zIndex = 2 + i;
+            var elem = this._floatingPaneStack[i];
+            var childElement = this._childIdToElementMap[elem.renderId];
+            if (elem.modalSupport && elem.get("modal")) {
+              if(this._layer.style.display == 'block') { // the layer should be last in DOM
+                var parent = this._layer.parentNode;
+                if(parent) // element can occur only once in DOM so it will be automatically removed from its last position
+                  parent.appendChild(this._layer); // no need to call removeChild
+              }
+              childElement.style.zIndex = 100 + i;
+              this._layer.style.zIndex = 99 + i;
+              this._layer.style.display = 'block';
+              this._layer_holder.push([elem.renderId, 99 + i]);
+              elem.application.setFocusedComponent(elem);
+            }
+            else
+              childElement.style.zIndex = 2 + i;
         }
         this._zIndexRenderRequired = false;
     },
@@ -259,11 +278,32 @@ Echo.Sync.ContentPane = Core.extend(Echo.Render.ComponentSync, {
      * @param {Echo.Component} child the child component to remove
      */
     _renderRemoveChild: function(update, child) {
+                
+        var childDiv = this._childIdToElementMap[child.renderId];
+
+        var l = this._layer_holder.length;
+        var isModal = child.modalSupport && child.get("modal");
+        if(l > 0 && isModal) {
+          if(this._layer_holder[l - 1][0] == child.renderId) // most of the cases the removed window is the one from the top
+            this._layer_holder.splice(l - 1, 1);
+          else { // if it's not we need to find it
+            for(var idx = 0; idx < this._layer_holder.length - 1; ++idx) {
+              if(this._layer_holder[idx][0] == child.renderId) {
+                this._layer_holder.splice(idx, 1);
+                break;
+              }
+            }
+          }
+          if(this._layer_holder.length > 0)
+            this._layer.style.zIndex = this._layer_holder[this._layer_holder.length - 1][1];
+          else
+            this._layer.style.display = 'none';
+        }        
+        
         if (child.floatingPane) {
             Core.Arrays.remove(this._floatingPaneStack, child);
         }
-        
-        var childDiv = this._childIdToElementMap[child.renderId];
+
         if (!childDiv) {
             // Child never rendered.
             return;

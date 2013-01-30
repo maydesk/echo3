@@ -48,12 +48,20 @@ public class Row extends Component {
     public static final String PROPERTY_BORDER = "border";
     public static final String PROPERTY_CELL_SPACING = "cellSpacing";
     public static final String PROPERTY_INSETS = "insets";
+    public static final String PROPERTY_WIDTH = "width";
+    public static final String PROPERTY_HEIGHT = "height";
     
     /**
      * Creates a new <code>Row</code>.
      */
     public Row() {
         super();
+    }
+
+    public Row(Extent width, Extent height) {
+        super();
+				setWidth(width);
+				setHeight(height);
     }
 
     /**
@@ -73,6 +81,24 @@ public class Row extends Component {
      */
     public Border getBorder() {
         return (Border) get(PROPERTY_BORDER);
+    }
+
+    /**
+     * Returns the <code>Width</code> of the <code>Row</code>.
+     * 
+     * @return the width
+     */
+    public Extent getWidth() {
+        return (Extent) get(PROPERTY_WIDTH);
+    }
+
+    /**
+     * Returns the <code>Height</code> of the <code>Row</code>.
+     * 
+     * @return the height
+     */
+    public Extent getHeight() {
+        return (Extent) get(PROPERTY_HEIGHT);
     }
     
     /**
@@ -112,6 +138,24 @@ public class Row extends Component {
      */
     public void setBorder(Border newValue) {
         set(PROPERTY_BORDER, newValue);
+    }
+    
+    /**
+     * Sets the <code>Width</code> of the <code>Row</code>.
+     * 
+     * @param newValue the new width
+     */
+    public void setWidth(Extent newValue) {
+        set(PROPERTY_WIDTH, newValue);
+    }
+    
+    /**
+     * Sets the <code>Height</code> of the <code>Row</code>.
+     * 
+     * @param newValue the new height
+     */
+    public void setHeight(Extent newValue) {
+        set(PROPERTY_HEIGHT, newValue);
     }
     
     /**

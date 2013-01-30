@@ -38,6 +38,9 @@ import java.util.List;
 import java.util.Locale;
 
 import nextapp.echo.app.event.EventListenerList;
+import nextapp.echo.app.event.FocusEvent;
+import nextapp.echo.app.event.FocusListener;
+import java.util.EventListener;
 
 /**
  * A representation of an Echo component. This is an abstract base class from
@@ -153,7 +156,13 @@ implements RenderIdSupport, Serializable {
      * registration to an <code>ApplicationInstance</code>.
      */
     private static final int FLAG_REGISTERING = 0x8;
+
+
+    public static final String GOT_FOCUS    = "gotFocus";
+    public static final String LOST_FOCUS   = "lostFocus";
     
+    public static final String FOCUS_LISTENERS_CHANGED_PROPERTY = "focusListeners";
+
     /** 
      * Property change event name for immediate children being made visible/invisible.
      * When used, the <code>newValue</code> of the event will represent a child made visible,
@@ -196,6 +205,7 @@ implements RenderIdSupport, Serializable {
     public static final String PROPERTY_FONT = "font";
     public static final String PROPERTY_FOREGROUND = "foreground";
     public static final String PROPERTY_LAYOUT_DATA = "layoutData";
+    public static final String PROPERTY_BOX_SHADOW = "boxShadow";
     
     /**
      * Verifies a character can be used as initial character in a renderId
@@ -276,6 +286,14 @@ implements RenderIdSupport, Serializable {
      * This identifier is not related in any way to <code>id</code>. 
      */
     private String renderId;
+    
+    /**
+     * <b>Last active renderId!</b>
+     * <br />
+     * Set when component is unregistering from application instance!
+     * @see #renderId
+     */
+    private String lastRenderId;
     
     /** Shared style. */
     private Style sharedStyle;
@@ -372,6 +390,52 @@ implements RenderIdSupport, Serializable {
     }
     
     /**
+     * Adds an <code>FocusListener</code> to this<code>Component/code>.
+     * The <code>FocusListener</code> will be invoked when the focus changed.
+     * 
+     * @param l the <code>ActionListener</code> to add
+     */
+    public void addFocusListener(FocusListener l) {
+        getEventListenerList().addListener(FocusListener.class, l);
+        // Notification of action listener changes is provided due to 
+        // existence of hasFocusListeners() method. 
+        firePropertyChange(FOCUS_LISTENERS_CHANGED_PROPERTY, null, l);
+    }
+
+   /**
+     * Determines the any <code>FocusListener</code>s are registered.
+     * 
+     * @return true if any action listeners are registered
+     */
+    public boolean hasFocusListeners() {
+        return hasEventListenerList() && getEventListenerList().getListenerCount(FocusListener.class) != 0;
+    }
+
+    /**
+     * Fires an gotFocus event to all listeners.
+     */
+    private void fireGotFocusEvent() {
+        if(!hasEventListenerList()) return;
+
+        final EventListener[] listeners = getEventListenerList().getListeners(FocusListener.class);
+        final FocusEvent e = new FocusEvent(this);
+        for (int i = 0; i < listeners.length; ++i) 
+          ( (FocusListener) listeners[i] ).gotFocus(e);
+    }
+
+    /**
+     * Fires an lostFocus event to all listeners.
+     */
+    private void fireLostFocusEvent() {
+        if(!hasEventListenerList()) return;
+
+        final EventListener[] listeners = getEventListenerList().getListeners(FocusListener.class);
+        final FocusEvent e = new FocusEvent(this);
+        for (int i = 0; i < listeners.length; ++i) 
+          ( (FocusListener) listeners[i] ).lostFocus(e);
+    }
+
+    /**
      * Adds a property change listener to this <code>Component</code>.
      *
      * @param l the listener to add
@@ -409,6 +473,10 @@ implements RenderIdSupport, Serializable {
      */
     void assignRenderId(String renderId) {
         this.renderId = renderId;
+    }
+    
+    void assignLastRenderId(String renderId) {
+        this.lastRenderId = renderId;
     }
     
     /**
@@ -714,7 +782,7 @@ implements RenderIdSupport, Serializable {
     public LayoutData getLayoutData() {
         return (LayoutData) localStyle.get(PROPERTY_LAYOUT_DATA);
     }
-
+   
     /**
      * Returns the specific layout direction setting of this component, if any.
      * This method will return null unless a <code>LayoutDirection</code> is
@@ -725,6 +793,18 @@ implements RenderIdSupport, Serializable {
      */
     public LayoutDirection getLayoutDirection() {
         return layoutDirection;
+    }
+    
+    /**
+     * Returns the specific box shadow (CSS3) setting of this component, if any.
+     * This method will return null unless a <code>BoxShadow</code> is
+     * specifically set on <strong>this</strong> <code>Component</code>.
+     * 
+     * @return the box shadow property of <strong>this</strong>
+     *         <code>Component</code>
+     */
+    public BoxShadow getBoxShadow() {
+        return (BoxShadow) localStyle.get(PROPERTY_BOX_SHADOW);
     }
 
     /**
@@ -773,6 +853,14 @@ implements RenderIdSupport, Serializable {
      */
     public String getRenderId() {
         return renderId;
+    }
+    
+    /**
+     * Returns the active render id of this component.
+     * @see #lastRenderId
+     */
+    public String getLastRenderId() {
+        return lastRenderId;
     }
 
     /**
@@ -1203,7 +1291,14 @@ implements RenderIdSupport, Serializable {
      * @param inputValue the value of the input
      * @see nextapp.echo.app.update.UpdateManager
      */
-    public void processInput(String inputName, Object inputValue) { }
+    public void processInput(String inputName, Object inputValue) 
+    { 
+      if( LOST_FOCUS.equals(inputName) )
+        fireLostFocusEvent();
+      else
+      if( GOT_FOCUS.equals(inputName) )
+        fireGotFocusEvent();
+    }
     
     /**
      * Sets the <code>ApplicationInstance</code> to which this component is
@@ -1507,6 +1602,15 @@ implements RenderIdSupport, Serializable {
     }
     
     /**
+     * Sets the <code>BoxShadow (CSS3)</code> of this <code>Component</code>.
+     * 
+     * @param newValue the new <code>BoxShadow</code>. 
+     */
+    public void setBoxShadow(BoxShadow newValue) {
+        set(PROPERTY_BOX_SHADOW, newValue);
+    }
+    
+    /**
      * Sets the locale of the <code>Component</code>.
      *
      * @param newValue the new locale
@@ -1530,7 +1634,8 @@ implements RenderIdSupport, Serializable {
      * @param renderId the new identifier
      */
     public void setRenderId(String renderId) {
-        if (this.renderId != null && renderId != null && this.applicationInstance != null) {
+        //if (this.renderId != null && renderId != null && this.applicationInstance != null) {
+        if (this.renderId != null && this.applicationInstance != null) {
             throw new IllegalStateException("Cannot set renderId while component is registered.");
         }
         if (renderId != null) {

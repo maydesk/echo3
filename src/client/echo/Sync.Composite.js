@@ -31,7 +31,11 @@ Echo.Sync.Composite = Core.extend(Echo.Render.ComponentSync, {
             this.renderStyle();
             Echo.Render.renderComponentAdd(update, this.component.children[0], this.contentDiv);
         }
-        
+        var element_height = this.component.render("height", "auto");
+				if(element_height != "auto") {				
+					this.div.style.height = "100%";
+				}
+				parentElement.style.height = element_height;
         parentElement.appendChild(this.div);
     },
     
@@ -75,9 +79,7 @@ Echo.Sync.Panel = Core.extend(Echo.Sync.Composite, {
         var child = this.component.children.length !== 0 ? this.component.children[0] : null;
         var width = this.component.render("width");
         var height = this.component.render("height");
-        if (Echo.Sync.Extent.isPercent(height)) {
-            height = null;
-        }
+
         if (child && child.pane) {
             this.div.style.position = "relative";
             if (!height) {
@@ -110,6 +112,6 @@ Echo.Sync.Panel = Core.extend(Echo.Sync.Composite, {
         Echo.Sync.Alignment.render(this.component.render("alignment"), this.contentDiv, true, this.component);
         Echo.Sync.FillImage.render(this.component.render("backgroundImage"), this.contentDiv);
         Echo.Sync.Extent.render(width, this.div, "width", true, true);
-        Echo.Sync.Extent.render(height, this.div, "height", false, false);
+        Echo.Sync.Extent.render(height, this.div, "height", true, true);
     }
 });

@@ -126,7 +126,7 @@ implements Serializable, TableColumnModel {
      * @see nextapp.echo.app.table.TableColumnModel#getColumn(int)
      */
     public TableColumn getColumn(int index) {
-        if ((getColumnCount() - 1) < index) {
+        if ((getTotalColumnCount() - 1) < index) {
             return null;
         }
 
@@ -137,7 +137,14 @@ implements Serializable, TableColumnModel {
      * @see nextapp.echo.app.table.TableColumnModel#getColumnCount()
      */
     public int getColumnCount() {
-        return columns.size();
+        int count = 0;
+        for (int columnIndex = 0; columnIndex < columns.size(); ++columnIndex) {
+            if (getColumn(columnIndex).isVisible()) {
+              count++;
+            }
+        }
+
+        return count;
     }
     
     /**
@@ -170,6 +177,13 @@ implements Serializable, TableColumnModel {
     }
     
     /**
+     * @see nextapp.echo.app.table.TableColumnModel#getTotalColumnCount()
+     */
+    public int getTotalColumnCount() {
+        return columns.size();
+    }
+    
+    /**
      * @see nextapp.echo.app.table.TableColumnModel#moveColumn(int, int)
      */
     public void moveColumn(int columnIndex, int newIndex) {
@@ -195,7 +209,7 @@ implements Serializable, TableColumnModel {
             return;
         }
         columns.remove(columnIndex);
-        fireColumnAdded(new TableColumnModelEvent(this, columnIndex, -1));
+        fireColumnRemoved(new TableColumnModelEvent(this, columnIndex, -1));
     }
     
     /**

@@ -33,6 +33,7 @@ import java.util.EventListener;
 
 import nextapp.echo.app.Alignment;
 import nextapp.echo.app.Border;
+import nextapp.echo.app.BoxShadow;
 import nextapp.echo.app.Color;
 import nextapp.echo.app.Component;
 import nextapp.echo.app.Extent;
@@ -42,6 +43,7 @@ import nextapp.echo.app.ImageReference;
 import nextapp.echo.app.Insets;
 import nextapp.echo.app.event.ActionEvent;
 import nextapp.echo.app.event.ActionListener;
+import nextapp.echo.app.event.EventListenerList;
 
 /**
  * An abstract base class for button components.  Provides basic properties, a
@@ -70,6 +72,7 @@ public abstract class AbstractButton extends Component {
     public static final String PROPERTY_FOCUSED_FONT = "focusedFont";
     public static final String PROPERTY_FOCUSED_FOREGROUND = "focusedForeground";
     public static final String PROPERTY_FOCUSED_ICON = "focusedIcon";
+    public static final String PROPERTY_FOCUSED_BOX_SHADOW = "focusedBoxShadow";
     public static final String PROPERTY_HEIGHT = "height";
     public static final String PROPERTY_ICON = "icon";
     public static final String PROPERTY_ALIGNMENT = "alignment";
@@ -115,6 +118,22 @@ public abstract class AbstractButton extends Component {
         }
     };
     
+    /**
+     * Set (replace) all <code>ActionListeners</code> wich were added by @see nextapp.echo.app.button.Button#addActionListener(ActionListener).
+     * 
+     * @param l the listener to add
+     */
+    public void setActionListener(ActionListener l) {
+        if (hasEventListenerList()) {
+          EventListenerList ell = getEventListenerList();
+          EventListener[] listeners = ell.getListeners(ActionListener.class);
+          for (int index = 0; index < listeners.length; ++index) {
+              ell.removeListener( ActionListener.class, (ActionListener) listeners[index] );
+          }
+        }
+        addActionListener(l);
+    }
+
     /**
      * Adds an <code>ActionListener</code> to receive notification of user
      * actions, i.e., button presses.
@@ -298,6 +317,16 @@ public abstract class AbstractButton extends Component {
      */
     public ImageReference getFocusedIcon() {
         return (ImageReference) get(PROPERTY_FOCUSED_ICON);
+    }
+    
+    /**
+     * Returns the box shadow of the button that is displayed when the button is
+     * focused.
+     * 
+     * @return the box shadow
+     */
+    public BoxShadow getFocusedBoxShadow() {
+        return (BoxShadow) get(PROPERTY_FOCUSED_BOX_SHADOW);
     }
 
     /**
@@ -761,6 +790,16 @@ public abstract class AbstractButton extends Component {
      */
     public void setFocusedIcon(ImageReference newValue) {
         set(PROPERTY_FOCUSED_ICON, newValue);
+    }
+    
+    /**
+     * Sets the box shadow of the button that is displayed when the button is 
+     * focused.
+     * 
+     * @param newValue the new box shadow
+     */
+    public void setFocusedBoxShadow(BoxShadow newValue) {
+        set(PROPERTY_FOCUSED_BOX_SHADOW, newValue);
     }
 
     /**

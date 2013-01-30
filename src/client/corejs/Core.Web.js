@@ -778,13 +778,6 @@ Core.Web.Env = {
     QUIRK_UNLOADED_IMAGE_HAS_SIZE: null,
 
     /**
-     * Flag indicating if xml-documents should be serialized before
-     * sending them through a xmlHttp request.
-     * @type Boolean
-     */
-    QUIRK_SERIALIZE_XML_BEFORE_XML_HTTP_REQ: null,
-
-    /**
      * User-agent string, in lowercase.
      */
     _ua: null,
@@ -893,13 +886,11 @@ Core.Web.Env = {
             this.QUIRK_DELAYED_FOCUS_REQUIRED = true;
             this.QUIRK_UNLOADED_IMAGE_HAS_SIZE = true;
             this.MEASURE_OFFSET_EXCLUDES_BORDER = true;
+            this.QUIRK_IE_BLANK_SCREEN = true;
             this.QUIRK_IE_HAS_LAYOUT = true;
             this.NOT_SUPPORTED_CSS_OPACITY = true;
             this.PROPRIETARY_IE_OPACITY_FILTER_REQUIRED = true;
             
-            if (this.BROWSER_VERSION_MAJOR < 9) {
-                this.QUIRK_IE_BLANK_SCREEN = true;
-            }
             if (this.BROWSER_VERSION_MAJOR < 8) {
                 // Internet Explorer 6 and 7 Flags.
                 this.QUIRK_TABLE_CELL_WIDTH_EXCLUDES_PADDING = true;
@@ -917,11 +908,6 @@ Core.Web.Env = {
                     // Enable 'garbage collection' on large associative arrays to avoid memory leak.
                     Core.Arrays.LargeMap.garbageCollectEnabled = true;
                 }
-            }
-            if(this.BROWSER_VERSION_MAJOR == 9) {
-                // Internet Explorer 9 Flags
-                // if false ie9 will re-format your xml by adding and removing linebreaks
-                this.QUIRK_SERIALIZE_XML_BEFORE_XML_HTTP_REQ = true;
             }
         } else if (this.ENGINE_GECKO) {
             this.QUIRK_KEY_PRESS_FIRED_FOR_SPECIAL_KEYS = true;
@@ -1342,6 +1328,201 @@ Core.Web.Event = {
 };
 
 /**
+ * An WebSocket connection to the hosting server. 
+  */
+Core.Web.WebSocketConnection = Core.extend({
+
+    $static: {
+        /** The connection has not yet been established. */
+        STATE_CONNECTING: 0,
+
+        /** The WebSocket connection is established and communication is possible. */
+        STATE_OPEN: 1,
+
+        /** The connection is going through the closing handshake. */
+        STATE_CLOSING: 2,
+
+        /** The connection has been closed or could not be opened. */
+        STATE_CLOSED: 3,
+        
+        /** The connection has been disposed. */
+        STATE_DISPOSED: 4,
+
+        /** This event occurs when socket connection is established. */
+        EVENT_OPEN: "open",
+
+        /** This event occurs when connection is closed. */
+        EVENT_CLOSE: "close",
+
+        /** This event occurs when there is any error in communication. */
+        EVENT_ERROR: "error",
+
+        /** This event occurs when client receives data from server. */
+        EVENT_MESSAGE: "message",
+
+        isAvailable: function() {
+            return !!window.WebSocket;
+        }
+    },
+
+    /** The URL. */
+    _url: null,
+
+    /** Specifies a sub-protocol that the server must support for the connection to be successful. */
+    _protocols: null,
+
+    /**
+     * Listener storage facility.
+     * @type Core.ListenerList
+     */
+    _listenerList: null,
+
+    /** 
+     * WebSocket object 
+     * @type WebSocket
+     */
+    _webSocket: null,
+
+   /**
+    * Function wrapper to invoke _processReceivedEvents() method.
+    * @type Function
+    */
+    _eventsHandler: null,
+    
+    _disposed: false,
+
+   /**
+    * Creates a new <code>WebSocketConnection</code>.
+    * This method simply configures the connection, the connection
+    * will not be opened until <code>open()</code> is invoked.
+    *
+    * @param {String} url the target URL
+    * @param {String or Array of Strings} protocols specifies a sub-protocol (optional)
+    * @constructor
+    */
+    $construct: function(url, protocols) {
+        this._url = url;
+        this._protocols = [].concat(protocols);
+        this._listenerList = new Core.ListenerList();
+        this._eventsHandler = new Core.method(this, this._processReceivedEvents);
+    },
+
+   /**
+    * Returns the state code of the WebSocket connection, if available.
+    * 
+    * @return the state code
+    * @type Integer
+    */
+    getState: function() {
+        if (this._disposed || !this._webSocket) {
+            return Core.Web.WebSocketConnection.STATE_DISPOSED;
+        } else {
+            return this._webSocket.readyState;
+        }
+    },
+
+   /**
+    * Adds a event listener to be notified when a events (open, close, error, message) is received from the websocket.
+    *
+    * @param {String} event type
+    * @param {Function} l the listener to add
+    */
+    addEventListener: function(eventType, l) {
+        switch(eventType) {
+            case Core.Web.WebSocketConnection.EVENT_OPEN:
+            case Core.Web.WebSocketConnection.EVENT_CLOSE:
+            case Core.Web.WebSocketConnection.EVENT_ERROR:
+            case Core.Web.WebSocketConnection.EVENT_MESSAGE:
+                this._listenerList.addListener(eventType, l);
+                break;
+            default:
+                throw new Error("Core.Web.WebSocketConnection.addEventsListener - invalid eventType: " + eventType + "!");
+        }
+    },
+
+   /**
+    * Removes a response listener to be notified when a events (open, close, error, message) is received from the websocket.
+    * 
+    * @param {String} event type
+    * @param {Function} l the listener to remove
+    */
+    removeEventListener: function(eventType, l) {
+        switch(eventType) {
+            case Core.Web.WebSocketConnection.EVENT_OPEN:
+            case Core.Web.WebSocketConnection.EVENT_CLOSE:
+            case Core.Web.WebSocketConnection.EVENT_ERROR:
+            case Core.Web.WebSocketConnection.EVENT_MESSAGE:
+                this._listenerList.removeListener(eventType, l);
+                break;
+            default:
+                throw new Error("Core.Web.WebSocketConnection.removeEventsListener - invalid eventType: " + eventType + "!");
+        }
+    },
+
+   /**
+    * Transmits data using the socket.
+    * If the socket is not open, it must throw an exception.
+    * 
+    * @param {String, Blob or ArrayBuffer} data to be sent
+    */
+    sendData: function(data) {
+      if (!this.isOpen()) {
+          throw new Error("Core.Web.WebSocketConnection.sendData - trying to send data to a not open connection!");
+      }
+      this._webSocket.send(data);
+    },
+	
+   /**
+    * Event listener for <code>open, close, error, message</code> 
+    * events received from the <code>WebSocket</code>.
+    */
+    _processReceivedEvents: function(e) {
+        this._listenerList.fireEvent({type: e.type, source: this, data: e});
+    },
+	
+   /**
+    * Open the web socket.
+    * This method will return before the Web Socket has received a event.
+    */
+    open: function() {
+        var state = this.getState();
+        if (state == Core.Web.WebSocketConnection.STATE_CONNECTING || state == Core.Web.WebSocketConnection.STATE_OPEN) {
+            return;
+        }
+        
+        this._webSocket = new WebSocket(this._url, this._protocols);
+        this._webSocket.onopen = this._eventsHandler;
+        this._webSocket.onclose = this._eventsHandler;
+        this._webSocket.onerror = this._eventsHandler;
+        this._webSocket.onmessage = this._eventsHandler;
+        this._disposed = false;
+    },
+
+   /**
+    * Closes of the socket.
+    * This method must be invoked when the socket will no longer be used/processed.
+    */
+    close: function() {
+        if (this._disposed) {
+            return;
+        }
+      
+        try {
+            var state = this.getState();
+            if (state == Core.Web.WebSocketConnection.STATE_CONNECTING || state == Core.Web.WebSocketConnection.STATE_OPEN) {
+                this._webSocket.close();
+            }        
+        }
+        finally {
+            this._listenerList.removeAllListeners();
+            this._listenerList = null;
+            this._webSocket = null;
+            this._disposed = true;
+        }
+    }
+});
+
+/**
  * An HTTP connection to the hosting server.  This method provides a cross
  * platform wrapper for XMLHttpRequest and additionally allows method
  * reference-based listener registration.  
@@ -1419,13 +1600,38 @@ Core.Web.HttpConnection = Core.extend({
         }
     },
     
+        
     /**
-     * Adds a response listener to be notified when a response is received from the connection.
-     * 
-     * @param {Function} l the listener to add
+     * Event listener for <code>readystatechange</code> events received from
+     * the <code>XMLHttpRequest</code>.
      */
-    addResponseListener: function(l) {
-        this._listenerList.addListener("response", l);
+    _processReadyStateChange: function() {
+        if (this._disposed) {
+            return;
+        }
+        
+        if (this._xmlHttpRequest.readyState == 4) {
+            var responseEvent;
+            try {
+                // 0 included as a valid response code for non-served applications.
+                var valid = !this._xmlHttpRequest.status || (this._xmlHttpRequest.status >= 200 && this._xmlHttpRequest.status <= 299);
+                responseEvent = {type: "response", source: this, valid: valid};
+            } catch (ex) {
+                responseEvent = {type: "response", source: this, valid: false, exception: ex};
+            }
+            
+            Core.Web.Scheduler.run(Core.method(this, function() {
+                if (this._disposed) {
+                    return;
+                }
+                try {
+                    this._listenerList.fireEvent(responseEvent);
+                }
+                finally {
+                    this.dispose();
+                }
+            }));
+        }
     },
     
     /**
@@ -1462,41 +1668,27 @@ Core.Web.HttpConnection = Core.extend({
         
         this._xmlHttpRequest.open(this._method, this._url, true);
 
-        // Set headers.
-        if (this._requestHeaders && (usingActiveXObject || this._xmlHttpRequest.setRequestHeader)) {
-            for(var h in this._requestHeaders) {
-                try {
-                    this._xmlHttpRequest.setRequestHeader(h, this._requestHeaders[h]);
-                } catch (e) {
-                    throw new Error("Failed to set header \"" + h + "\"");
+        if (usingActiveXObject || this._xmlHttpRequest.setRequestHeader) {
+            
+            // Set headers, if supplied.
+            if (this._requestHeaders) {
+                for(var h in this._requestHeaders) {
+                    try {
+                        this._xmlHttpRequest.setRequestHeader(h, this._requestHeaders[h]);
+                    } catch (e) {
+                        throw new Error("Failed to set header \"" + h + "\"");
+                    }
                 }
             }
-        }
-        
-        // Set Content-Type, if supplied.
-        if (this._contentType && (usingActiveXObject || this._xmlHttpRequest.setRequestHeader)) {
-            this._xmlHttpRequest.setRequestHeader("Content-Type", this._contentType);
+            
+            // Set Content-Type, if supplied.
+            if (this._contentType) {
+                this._xmlHttpRequest.setRequestHeader("Content-Type", this._contentType);
+            }
         }
 
         // Execute request.
-        if (Core.Web.Env.QUIRK_SERIALIZE_XML_BEFORE_XML_HTTP_REQ) {
-            // serialize before sending
-            this._xmlHttpRequest.send(this._messageObject ? new XMLSerializer().serializeToString(this._messageObject) : null);
-        } else {
-            this._xmlHttpRequest.send(this._messageObject ? this._messageObject : null);
-        }
-    },
-    
-    /**
-     * Disposes of the connection.  This method must be invoked when the connection 
-     * will no longer be used/processed.
-     */
-    dispose: function() {
-        this._listenerList = null;
-        this._messageObject = null;
-        this._xmlHttpRequest = null;
-        this._disposed = true;
-        this._requestHeaders = null;
+        this._xmlHttpRequest.send(this._messageObject ? this._messageObject : null);
     },
     
     /**
@@ -1505,6 +1697,19 @@ Core.Web.HttpConnection = Core.extend({
      */
     getResponseHeader: function(header) {
         return this._xmlHttpRequest ? this._xmlHttpRequest.getResponseHeader(header) : null;
+    },
+    
+    /**
+     * Sets a header in the request.
+     * 
+     * @param {String} header the header to retrieve
+     * @param {String} value the value of the header
+     */
+    setRequestHeader: function(header, value) {
+        if (!this._requestHeaders) {
+            this._requestHeaders = { };
+        } 
+        this._requestHeaders[header] = value;
     },
     
     /**
@@ -1548,31 +1753,13 @@ Core.Web.HttpConnection = Core.extend({
     },
     
     /**
-     * Event listener for <code>readystatechange</code> events received from
-     * the <code>XMLHttpRequest</code>.
+     * Adds a response listener to be notified when a response is received from the connection.
+     * 
+     * @param {Function} l the listener to add
      */
-    _processReadyStateChange: function() {
-        if (this._disposed) {
-            return;
-        }
-        
-        if (this._xmlHttpRequest.readyState == 4) {
-            var responseEvent;
-            try {
-                // 0 included as a valid response code for non-served applications.
-                var valid = !this._xmlHttpRequest.status ||  
-                        (this._xmlHttpRequest.status >= 200 && this._xmlHttpRequest.status <= 299);
-                responseEvent = {type: "response", source: this, valid: valid};
-            } catch (ex) {
-                responseEvent = {type: "response", source: this, valid: false, exception: ex};
-            }
-            
-            Core.Web.Scheduler.run(Core.method(this, function() {
-                this._listenerList.fireEvent(responseEvent);
-                this.dispose();
-            }));
-        }
-    },
+    addResponseListener: function(l) {
+        this._listenerList.addListener("response", l);
+    },    
     
     /**
      * Removes a response listener to be notified when a response is received from the connection.
@@ -1584,16 +1771,15 @@ Core.Web.HttpConnection = Core.extend({
     },
     
     /**
-     * Sets a header in the request.
-     * 
-     * @param {String} header the header to retrieve
-     * @param {String} value the value of the header
+     * Disposes of the connection.  This method must be invoked when the connection 
+     * will no longer be used/processed.
      */
-    setRequestHeader: function(header, value) {
-        if (!this._requestHeaders) {
-            this._requestHeaders = { };
-        } 
-        this._requestHeaders[header] = value;
+    dispose: function() {
+        this._listenerList = null;
+        this._messageObject = null;
+        this._xmlHttpRequest = null;
+        this._disposed = true;
+        this._requestHeaders = null;
     }
 });
 
@@ -2133,7 +2319,7 @@ Core.Web.Measure = {
         if (!units || units == "px") {
             return value;
         }
-        var dpi = horizontal ? Core.Web.Measure._hInch : Core.Web.Measure._vInch;
+        // var dpi = horizontal ? Core.Web.Measure._hInch : Core.Web.Measure._vInch;
         switch (units) {
         case "%":  return null;
         case "in": return value * (horizontal ? Core.Web.Measure._hInch : Core.Web.Measure._vInch);
@@ -2203,15 +2389,12 @@ Core.Web.Measure = {
      * @type Object
      */
     _getScrollOffset: function(element) {
-        var valueT = 0, valueL = 0;
+        var valueT = element.scrollTop  || 0, valueL = element.scrollLeft || 0;
         do {
-            if (element.scrollLeft || element.scrollTop) {
-                valueT += element.scrollTop  || 0;
-                valueL += element.scrollLeft || 0; 
-            }
-            element = element.offsetParent;
-        } while (element);
-        return { left: valueL, top: valueT };
+            valueT += element.scrollTop  || 0;
+            valueL += element.scrollLeft || 0;
+        } while ((element = element.offsetParent));
+        return {left: valueL, top: valueT};
     },
     
     /**
@@ -2222,13 +2405,12 @@ Core.Web.Measure = {
      * @type Object
      */
     _getCumulativeOffset: function(element) {
-        var valueT = 0, 
-            valueL = 0,
-            init = true;
-        do {
+        var valueT = element.offsetTop  || 0;
+        var valueL = element.offsetLeft || 0;
+        while((element = element.offsetParent)) {
             valueT += element.offsetTop  || 0;
             valueL += element.offsetLeft || 0;
-            if (!init && Core.Web.Env.MEASURE_OFFSET_EXCLUDES_BORDER) {
+            if (Core.Web.Env.MEASURE_OFFSET_EXCLUDES_BORDER) {
                 if (element.style.borderLeftWidth && element.style.borderLeftStyle != "none") {
                     var borderLeft = Core.Web.Measure.extentToPixels(element.style.borderLeftWidth, true);
                     valueL += borderLeft;
@@ -2244,10 +2426,8 @@ Core.Web.Measure = {
                     }
                 }
             }
-            init = false;
-            element = element.offsetParent;
-        } while (element);
-        return { left: valueL, top: valueT };
+        }
+        return {left: valueL, top: valueT};
     },
 
     /**
@@ -2275,7 +2455,9 @@ Core.Web.Measure = {
                 this._offscreenDiv.style.cssText = 
                         "position: absolute; top: -1300px; left: -1700px; width: 1600px; height: 1200px;";
                 document.body.appendChild(this._offscreenDiv);
-            }
+            },
+            
+            _isResized: false
         },
 
         /**
@@ -2321,30 +2503,14 @@ Core.Web.Measure = {
                     height: window.innerHeight || document.documentElement.clientHeight,
                     width: window.innerWidth || document.documentElement.clientWidth
                 };
-            }
+            }            
             
-            var testElement = element;
-            while (testElement && testElement != document) {
-                testElement = testElement.parentNode;
-            }
-            var rendered = testElement == document;
-            
-            var parentNode, nextSibling;
+            var rendered = document.body.contains(element);
+            var tester = element;
             
             if (flags & Core.Web.Measure.Bounds.FLAG_MEASURE_DIMENSION) {
                 if (!rendered) {
-                    // Element must be added to off-screen element for measuring.
-                    
-                    // Store parent node and next sibling such that element may be replaced into proper position
-                    // once off-screen measurement has been completed.
-                    parentNode = element.parentNode;
-                    nextSibling = element.nextSibling;
-            
-                    // Remove element from parent.
-                    if (parentNode) {
-                        parentNode.removeChild(element);
-                    }
-                    
+                    // Element must be added to off-screen element for measuring.                    
                     if (constraints) {
                         if (constraints.width) {
                             Core.Web.Measure.Bounds._offscreenDiv.width = constraints.width;
@@ -2352,34 +2518,33 @@ Core.Web.Measure = {
                         if (constraints.height) {
                             Core.Web.Measure.Bounds._offscreenDiv.height = constraints.height;
                         }
+                        Core.Web.Measure.Bounds._isResized = true;
+                    } else if (Core.Web.Measure.Bounds._isResized) {
+                        Core.Web.Measure.Bounds._offscreenDiv.width = "1600px";
+                        Core.Web.Measure.Bounds._offscreenDiv.height = "1200px";
+                        Core.Web.Measure.Bounds._isResized = false;
                     }
                     
                     // Append element to measuring container DIV.
-                    Core.Web.Measure.Bounds._offscreenDiv.appendChild(element);
-                    
-                    if (constraints) {
-                        Core.Web.Measure.Bounds._offscreenDiv.width = "1600px";
-                        Core.Web.Measure.Bounds._offscreenDiv.height = "1200px";
-                    }
+                    tester = element.cloneNode(true);
+                    Core.Web.Measure.Bounds._offscreenDiv.appendChild(tester);
                 }
                 
                 // Store width and height of element.
-                this.width = element.offsetWidth;
-                this.height = element.offsetHeight;
+                this.width = tester.offsetWidth;
+                this.height = tester.offsetHeight;
                 
                 if (!rendered) {
-                    // Replace off-screen measured element in previous location.
-                    Core.Web.Measure.Bounds._offscreenDiv.removeChild(element);
-                    if (parentNode) {
-                        parentNode.insertBefore(element, nextSibling);
-                    }
+                    // Element must be removed from off-screen element for measuring.
+                    Core.Web.Measure.Bounds._offscreenDiv.removeChild(tester);
+                    tester = element;
                 }
             }
 
             // Determine top and left positions of element if rendered on-screen.
             if (rendered && (flags & Core.Web.Measure.Bounds.FLAG_MEASURE_POSITION)) {
-                var cumulativeOffset = Core.Web.Measure._getCumulativeOffset(element);
-                var scrollOffset = Core.Web.Measure._getScrollOffset(element);
+                var cumulativeOffset = Core.Web.Measure._getCumulativeOffset(tester);
+                var scrollOffset = Core.Web.Measure._getScrollOffset(tester);
         
                 this.top = cumulativeOffset.top - scrollOffset.top;
                 this.left = cumulativeOffset.left - scrollOffset.left;
@@ -2558,10 +2723,14 @@ Core.Web.Scheduler = {
      * Updates a previously added runnable to be executed based on its <code>timeInterval</code> setting.
      * Performs no action if specified runnable is not currently enqueued.
      * 
+     * @param {Boolean} toBeAdded add to Core.Web.Scheduler if specified runnable is not currently enqueued.
      * @param {Core.Web.Scheduler.Runnable} runnable the runnable to update
      */
-    update: function(runnable) {
+    update: function(runnable, toBeAdded) {
         if (Core.Arrays.indexOf(Core.Web.Scheduler._runnables, runnable) == -1) {
+            if (toBeAdded) {
+                Core.Web.Scheduler.add(runnable);
+            }
             return;
         }
         var currentTime = new Date().getTime();

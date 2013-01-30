@@ -65,7 +65,7 @@ extends Serializable {
     public TableColumn getColumn(int columnIndex);
     
     /**
-     * Returns the number of columns in the column model.
+     * Returns the number of visible columns in the column model.
      *
      * @return the number of columns
      */
@@ -87,6 +87,13 @@ extends Serializable {
      * @return the <code>Iterator</code>
      */
     public Iterator getColumns();
+    
+    /**
+     * Returns the number of columns in the column model.
+     *
+     * @return the number of columns
+     */
+    public int getTotalColumnCount();
     
     /**
      * Moves a table column to a new index within the model.

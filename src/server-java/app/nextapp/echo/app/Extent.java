@@ -79,6 +79,36 @@ implements Comparable, Serializable {
     }
     
     /**
+     * Subs one <code>Extent</code> to another, returning the sub as a new
+     * <code>Extent</code>.  Null is returned if the <code>Extent</code>s have
+     * incompatible units.  If either provided <code>Extent</code> is null, the
+     * other is returned.
+     * 
+     * @param a the first <code>Extent</code>
+     * @param b the second <code>Extent</code>
+     * @return the sub of the <code>Extent</code>s, if calculable 
+     */
+    public static Extent sub(Extent a, Extent b) {
+        if (a == null) {
+            return b;
+        }
+        if (b == null) {
+            return a;
+        }
+        if (a.getUnits() == b.getUnits()) {
+            return new Extent(a.getValue() - b.getValue(), a.getUnits());
+        }
+        if (a.isPrint() && b.isPrint()) {
+            if (a.isEnglish() && b.isEnglish()) {
+                return new Extent(a.toPoint() - b.toPoint(), PT);
+            }
+            return new Extent(a.toMm() - b.toMm(), MM);
+        }
+        return null;
+    }
+    
+    
+    /**
      * Validates that the specified <code>Extent</code> is acceptable for use
      * in a particular environment, by ensuring that its units are of a
      * supported type.

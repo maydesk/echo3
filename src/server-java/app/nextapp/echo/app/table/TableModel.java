@@ -58,7 +58,7 @@ extends Serializable {
     public Class getColumnClass(int column);
 
     /**
-     * Returns the number of columns in the table.
+     * Returns the number of visible columns in the table.
      *
      * @return the column count
      */
@@ -78,6 +78,13 @@ extends Serializable {
      * @return the row count
      */
     public int getRowCount();
+
+    /**
+     * Returns the number of columns in the table.
+     *
+     * @return the column count
+     */
+    public int getTotalColumnCount();
     
     /**
      * Returns the value found at the given coordinate within the table.
@@ -89,6 +96,14 @@ extends Serializable {
      * @param row the row index (0-based)
      */
     public Object getValueAt(int column, int row);
+
+    /**
+     * Returns the visibility of the column.
+     *
+     * @param column the column index (0-based)
+     * @return true if the column is visible and else if not
+     */
+    public boolean isColumnVisible(int column);
     
     /**
      * Removes a listener from being notified of changes.

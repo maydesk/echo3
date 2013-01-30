@@ -2,3 +2,8 @@ lib
 dist
 build
 custom-ant.properties
+.gradle
+.classpath
+.project
+.settings
+bin

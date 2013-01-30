@@ -62,7 +62,8 @@ implements Serializable {
     public static final String LOCALE_CHANGED_PROPERTY = "locale";
     public static final String MODAL_COMPONENTS_CHANGED_PROPERTY = "modalComponents";
     public static final String STYLE_SHEET_CHANGED_PROPERTY = "styleSheet";
-    public static final String WINDOWS_CHANGED_PROPERTY = "windows";
+    public static final String WINDOWS_CHANGED_PROPERTY = "windows";    
+    public static final String LAST_ENQUEUE_TASK_PROPERTY = "lastEnqueueTask";
     
     /** 
      * A <code>ThreadLocal</code> reference to the 
@@ -202,6 +203,12 @@ implements Serializable {
      * @see #generateId()
      */
     private long nextId;
+            
+    /**
+     * Flag indicating whether the application has been disposed, i.e., whether <code>ApplicationInstance.dispose()</code>
+     * has been invoked.
+     */
+    private Boolean disposed = false;
     
     /** 
      * Creates an <code>ApplicationInstance</code>. 
@@ -263,12 +270,22 @@ implements Serializable {
      * Implementations must invoke <code>super.dispose()</code>.
      */
     public void dispose() {
-        if (defaultWindow != null) {
-            defaultWindow.doDispose();
-            defaultWindow.register(null);
+        if (disposed) {
+            throw new IllegalStateException("Attempt to invoke ApplicationInstance.dispose() on disposed instance.");
+        }        
+        try {
+          if (defaultWindow != null) {
+              defaultWindow.doDispose();
+              defaultWindow.register(null);
+          }
+          synchronized (taskQueueMap) {
+              taskQueueMap.clear();
+          }
         }
-        synchronized (taskQueueMap) {
-            taskQueueMap.clear();
+        finally {
+          synchronized(disposed) {
+              disposed = true;
+          }          
         }
     }
 
@@ -343,6 +360,7 @@ implements Serializable {
                 taskQueueMap.put(taskQueue, taskList);
             }
             taskList.add(task);
+            firePropertyChange(LAST_ENQUEUE_TASK_PROPERTY, null, new Long(System.currentTimeMillis()));
         }
     }
     
@@ -655,7 +673,7 @@ implements Serializable {
             }
         }
         Iterator it = currentTasks.iterator();
-        while (it.hasNext()) {
+        while (it.hasNext() && !disposed) {
             ((Runnable) it.next()).run();
         }
     }
@@ -675,9 +693,10 @@ implements Serializable {
         if (renderId == null || renderIdToComponentMap.containsKey(renderId)) {
             // Note that the render id is reassigned if it currently exists renderIdToComponentMap.  This could be the case
             // in the event a Component was being used in a pool.
-            component.assignRenderId(generateId());
+            renderId = generateId();
+            component.assignRenderId(renderId);            
         }
-        renderIdToComponentMap.put(component.getRenderId(), component);
+        renderIdToComponentMap.put(renderId, component);
         if (component instanceof ModalSupport && ((ModalSupport) component).isModal()) {
             setModal(component, true);
         }
@@ -836,7 +855,9 @@ implements Serializable {
      * @see Component#register(ApplicationInstance)
      */
     void unregisterComponent(Component component) {
-        renderIdToComponentMap.remove(component.getRenderId());
+        final String renderId = component.getRenderId();
+        component.assignLastRenderId(renderId);
+        renderIdToComponentMap.remove(renderId);
         if (component instanceof ModalSupport && ((ModalSupport) component).isModal()) {
             setModal(component, false);
         }

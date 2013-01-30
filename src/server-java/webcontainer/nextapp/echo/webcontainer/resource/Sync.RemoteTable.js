@@ -108,7 +108,7 @@ Echo.Sync.RemoteTableSync = Core.extend(Echo.Render.ComponentSync, {
                 }
                 if (this._selectionEnabled) {
                     Core.Web.Event.add(tr, "click", clickRef, false);
-                    Core.Web.Event.Selection.disable(tr);
+                    //Core.Web.Event.Selection.disable(tr);
                 }
             }
         }
@@ -175,21 +175,23 @@ Echo.Sync.RemoteTableSync = Core.extend(Echo.Render.ComponentSync, {
         if (!this.client || !this.client.verifyInput(this.component)) {
             return true;
         }
+
         var tr = e.registeredTarget;
         var rowIndex = this._getRowIndex(tr);
         if (rowIndex == -1) {
             return;
         }
-        
+
+        this.client.application.setFocusedComponent(this.component);        
         Core.Web.DOM.preventEventDefault(e);
     
-        if (this.selectionModel.getSelectionMode() == Echo.Sync.RemoteTable.ListSelectionModel.SINGLE_SELECTION || 
-                !(e.shiftKey || e.ctrlKey || e.metaKey || e.altKey)) {
+        var isSingleSelection = this.selectionModel.getSelectionMode() == Echo.Sync.RemoteTable.ListSelectionModel.SINGLE_SELECTION;
+    
+        if (isSingleSelection || !(e.shiftKey || e.ctrlKey || e.metaKey || e.altKey)) {
             this._clearSelected();
         }
     
-        if (!this.selectionModel.getSelectionMode() == Echo.Sync.RemoteTable.ListSelectionModel.SINGLE_SELECTION && 
-                e.shiftKey && this.lastSelectedIndex != -1) {
+        if (!isSingleSelection && e.shiftKey && this.lastSelectedIndex != -1) {
             var startIndex;
             var endIndex;
             if (this.lastSelectedIndex < rowIndex) {
@@ -202,7 +204,7 @@ Echo.Sync.RemoteTableSync = Core.extend(Echo.Render.ComponentSync, {
             for (var i = startIndex; i <= endIndex; ++i) {
                 this._setSelected(i, true);
             }
-        } else {
+        } else if(!(isSingleSelection && e.ctrlKey && rowIndex == this.lastSelectedIndex)) {
             this.lastSelectedIndex = rowIndex;
             this._setSelected(rowIndex, !this.selectionModel.isSelectedIndex(rowIndex));
         }
@@ -327,6 +329,14 @@ Echo.Sync.RemoteTableSync = Core.extend(Echo.Render.ComponentSync, {
             this._table.appendChild(colGroupElement);
         }
         
+				var height = this.component.render("height", "auto");
+				if(height != "auto")
+				{
+					parentElement.style.height = height;
+					this._div.style.height = "100%";
+					this._table.style.height = "100%";
+				}
+
         this._table.appendChild(this._tbody);
         this._div.appendChild(this._table);
         parentElement.appendChild(this._div);
@@ -364,6 +374,29 @@ Echo.Sync.RemoteTableSync = Core.extend(Echo.Render.ComponentSync, {
         this._tbody = null;
     },
     
+    _style_counter : 0,
+    
+    _handleSelectedForeground: function(td, restore, color) {
+      var id = this.component.renderId.replace('.', '_');
+      var style = document.getElementById('tdSelectionFix' + id);
+      if(restore) {
+        td.className = "";
+        if(--this._style_counter == 0 && style)
+          style.parentNode.removeChild(style);
+      }
+      else {
+        td.className = "fixSelection" + id;
+        ++this._style_counter;
+        if(style || !color)
+          return;
+        style = document.createElement("style");
+        style.type = "text/css";
+        style.id = "tdSelectionFix" + id;
+        style.innerHTML = "td.fixSelection" + id + " [style] { color: " + color + " !important; }";
+        document.getElementsByTagName('head')[0].appendChild(style);
+      }
+    },
+        
     /**
      * Renders an appropriate style for a row (i.e. selected or deselected).
      *
@@ -386,12 +419,14 @@ Echo.Sync.RemoteTableSync = Core.extend(Echo.Render.ComponentSync, {
                     Echo.Sync.Color.render(Echo.Sync.RemoteTable.DEFAULT_SELECTION_FOREGROUND, td, "color");
                     Echo.Sync.Color.render(Echo.Sync.RemoteTable.DEFAULT_SELECTION_BACKGROUND, td, "background");
                 } else {
+                    this._handleSelectedForeground(td, false, this.component.render("selectionForeground"));
                     Echo.Sync.Font.renderClear(this.component.render("selectionFont"), td);
-                    Echo.Sync.Color.render(this.component.render("selectionForeground"), td, "color");
+                    //Echo.Sync.Color.render(this.component.render("selectionForeground"), td, "color");
                     Echo.Sync.Color.render(this.component.render("selectionBackground"), td, "background");
                     Echo.Sync.FillImage.render(this.component.render("selectionBackgroundImage"), td);
                 }
             } else {
+                this._handleSelectedForeground(td, true, false);
                 td.style.color = "";
                 td.style.backgroundColor = "";
                 td.style.backgroundImage = "";
@@ -441,6 +476,8 @@ Echo.Sync.RemoteTableSync = Core.extend(Echo.Render.ComponentSync, {
                         td.style.width = (this._columnWidths[columnIndex] - cellInsets.left - cellInsets.right) + "px";
                     }
                 }
+								if(layoutData.width)
+									td.style.width = layoutData.width;
                 Echo.Sync.Insets.render(layoutData.insets, td, "padding");
                 Echo.Sync.Alignment.render(layoutData.alignment, td, true, this.component);
                 Echo.Sync.FillImage.render(layoutData.backgroundImage, td);

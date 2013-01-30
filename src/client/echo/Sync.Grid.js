@@ -14,8 +14,6 @@ Echo.Sync.Grid = Core.extend(Echo.Render.ComponentSync, {
          * @type Element
          */
         _createPrototypeTable: function() {
-            var div = document.createElement("div");
-            
             var table = document.createElement("table");
             table.style.outlineStyle = "none";
             table.tabIndex = "-1";
@@ -24,11 +22,12 @@ Echo.Sync.Grid = Core.extend(Echo.Render.ComponentSync, {
             var colGroup = document.createElement("colgroup");
             table.appendChild(colGroup);
         
-            table.appendChild(document.createElement("tbody"));
+						var table_body = document.createElement("tbody");
+						table_body.style.height = "100%";
+            table.appendChild(table_body);
+						
             
-            div.appendChild(table);
-            
-            return div;
+            return table;
         },
         
         /**
@@ -558,8 +557,8 @@ Echo.Sync.Grid = Core.extend(Echo.Render.ComponentSync, {
             defaultInsets = Echo.Sync.Insets.toCssValue(this.component.render("insets", 0)),
             defaultPixelInsets,
             defaultBorder = this.component.render("border", ""),
-            width = this.component.render("width"),
-            height = this.component.render("height"),
+            width = this.component.render("width", "auto"),
+            height = this.component.render("height", "auto"),
             td,
             columnIndex;
         defaultPixelInsets = Echo.Sync.Insets.toPixels(defaultInsets);
@@ -567,38 +566,38 @@ Echo.Sync.Grid = Core.extend(Echo.Render.ComponentSync, {
         this._columnCount = gridProcessor.getColumnCount();
         this._rowCount = gridProcessor.getRowCount();
         
-        this._div = Echo.Sync.Grid._prototypeTable.cloneNode(true);
-        this._div.id = this.component.renderId;
+        this._table = Echo.Sync.Grid._prototypeTable.cloneNode(true);
+        this._table.id = this.component.renderId;
         
-        var table = this._div.firstChild;
-        
-        Echo.Sync.renderComponentDefaults(this.component, table);
-        Echo.Sync.Border.render(defaultBorder, table);
-        table.style.padding = defaultInsets; 
+        Echo.Sync.renderComponentDefaults(this.component, this._table);
+        Echo.Sync.Border.render(defaultBorder, this._table);
+        this._table.style.padding = defaultInsets; 
         
         // Render percent widths using measuring for IE to avoid potential horizontal scrollbars.
-        if (width && Core.Web.Env.QUIRK_IE_TABLE_PERCENT_WIDTH_SCROLLBAR_ERROR && Echo.Sync.Extent.isPercent(width)) {
-            this._div.style.zoom = 1;
+        if (width && Core.Web.Env.QUIRK_IE_TABLE_PERCENT_WIDTH_SCROLLBAR_ERROR ) { // && Echo.Sync.Extent.isPercent(width)) {
+            this._renderPercentWidthByMeasure = parseInt(width, 10);
+            width = null;
         }
         
         // Set overall width/height.
         if (width) {
-            if (Echo.Sync.Extent.isPercent(width)) {
-                table.style.width = width;
-            } else {
-                table.style.width = Echo.Sync.Extent.toCssValue(width, true);
+            if (Echo.Sync.Extent.isPercent(width) || width == "auto") {
+                this._table.style.width = width;
+            }
+						else {
+                this._table.style.width = Echo.Sync.Extent.toCssValue(width, true);
             }
         }
         if (height) {
-            if (Echo.Sync.Extent.isPercent(height)) {
-                table.style.height = height;
+            if (Echo.Sync.Extent.isPercent(height) || height == "auto") {
+                this._table.style.height = height;
             } else {
-                table.style.height = Echo.Sync.Extent.toCssValue(height, false);
+                this._table.style.height = Echo.Sync.Extent.toCssValue(height, true);
             }
         }
 
         // Render column widths into colgroup element.
-        var colGroup = table.firstChild;
+        var colGroup = this._table.firstChild;
         for (columnIndex = 0; columnIndex < this._columnCount; ++columnIndex) {
             var col = document.createElement("col");
             width = gridProcessor.xExtents[columnIndex];
@@ -644,7 +643,7 @@ Echo.Sync.Grid = Core.extend(Echo.Render.ComponentSync, {
             tr = document.createElement("tr");
             height = gridProcessor.yExtents[rowIndex];
             if (height) {
-                tr.style.height = Echo.Sync.Extent.toCssValue(height, false);
+                tr.style.height = Echo.Sync.Extent.toCssValue(height, true);
             }
             tbody.appendChild(tr);
             
@@ -693,17 +692,38 @@ Echo.Sync.Grid = Core.extend(Echo.Render.ComponentSync, {
             }
         }
         
-        parentElement.appendChild(this._div);
+        parentElement.appendChild(this._table);
+    },
+    
+    /** @see Echo.Render.ComponentSync#renderDisplay */
+    renderDisplay: function() {
+        if (this._renderPercentWidthByMeasure) {
+            this._table.style.width = "";
+            var tableParent = this._table.parentNode;
+            var availableWidth = tableParent.offsetWidth;
+            if (tableParent.style.paddingLeft) {
+                availableWidth -= parseInt(tableParent.style.paddingLeft, 10);
+            }
+            if (tableParent.style.paddingRight) {
+                availableWidth -= parseInt(tableParent.style.paddingRight, 10);
+            }
+            var width = ((availableWidth * this._renderPercentWidthByMeasure) / 100) - Core.Web.Measure.SCROLL_WIDTH;
+            if (width > 0) {
+                this._table.style.width = width + "px";
+            }
+        }
     },
     
     /** @see Echo.Render.ComponentSync#renderDispose */
     renderDispose: function(update) {
-        this._div = null;
+        Core.Web.Event.removeAll(this._table);
+        this._table = null;
+        this._renderPercentWidthByMeasure = null;
     },
     
     /** @see Echo.Render.ComponentSync#renderUpdate */
     renderUpdate: function(update) {
-        var element = this._div;
+        var element = this._table;
         var containerElement = element.parentNode;
         Echo.Render.renderComponentDispose(update, update.parent);
         containerElement.removeChild(element);

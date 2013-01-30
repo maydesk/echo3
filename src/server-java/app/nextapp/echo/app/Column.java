@@ -47,12 +47,20 @@ public class Column extends Component {
     public static final String PROPERTY_BORDER = "border";
     public static final String PROPERTY_CELL_SPACING = "cellSpacing";
     public static final String PROPERTY_INSETS = "insets";
+		public static final String PROPERTY_HEIGHT = "height";
+		public static final String PROPERTY_WIDTH = "width";
     
     /**
      * Creates a new <code>Column</code>.
      */
     public Column() {
         super();
+    }
+
+    public Column(Extent width, Extent height) {				
+        super();
+				setWidth(width);
+				setHeight(height);
     }
     
     /**
@@ -62,6 +70,24 @@ public class Column extends Component {
      */
     public Border getBorder() {
         return (Border) get(PROPERTY_BORDER);
+    }
+    
+    /**
+     * Returns the <code>Height</code> of the <code>Column</code>.
+     * 
+     * @return the height
+     */
+    public Extent getHeight() {
+        return (Extent) get(PROPERTY_HEIGHT);
+    }
+    
+    /**
+     * Returns the <code>Width</code> of the <code>Column</code>.
+     * 
+     * @return the width
+     */
+    public Extent getWidth() {
+        return (Extent) get(PROPERTY_WIDTH);
     }
     
     /**
@@ -93,6 +119,24 @@ public class Column extends Component {
      */
     public void setBorder(Border newValue) {
         set(PROPERTY_BORDER, newValue);
+    }
+    
+     /**
+     * Sets the <code>Height</code> of the <code>Column</code>.
+     * 
+     * @param newValue the new height
+     */
+    public void setHeight(Extent newValue) {
+        set(PROPERTY_HEIGHT, newValue);
+    }
+        
+     /**
+     * Sets the <code>Width</code> of the <code>Column</code>.
+     * 
+     * @param newValue the new width
+     */
+    public void setWidth(Extent newValue) {
+        set(PROPERTY_WIDTH, newValue);
     }
     
     /**

@@ -115,6 +115,16 @@ public class TextComponentPeer extends AbstractComponentSynchronizePeer {
                 return ((TextComponent) c).hasActionListeners();
             }
         });
+        addEvent(new EventPeer(TextComponent.EMPTY_EVENT, TextComponent.EMPTY_LISTENERS_CHANGED_PROPERTY) {
+            public boolean hasListeners(Context context, Component c) {
+                return ((TextComponent) c).hasEmptyListeners();
+            }
+        });
+        addEvent(new EventPeer(TextComponent.NO_EMPTY_EVENT, TextComponent.EMPTY_LISTENERS_CHANGED_PROPERTY) {
+            public boolean hasListeners(Context context, Component c) {
+                return ((TextComponent) c).hasEmptyListeners();
+            }
+        });
         addEvent(new EventPeer(INPUT_CHANGE, PROPERTY_SYNC_MODE) {
             public boolean hasListeners(Context context, Component c) {
                 return ((Integer) c.getRenderProperty(PROPERTY_SYNC_MODE, new Integer(SYNC_ON_ACTION))).intValue() 
@@ -180,9 +190,9 @@ public class TextComponentPeer extends AbstractComponentSynchronizePeer {
                 newValue = "";
             }
             ClientUpdateManager clientUpdateManager = (ClientUpdateManager) context.get(ClientUpdateManager.class);
-            if (!Boolean.FALSE.equals(component.getRenderProperty(TextComponent.PROPERTY_EDITABLE))) {
+            //if (!Boolean.FALSE.equals(component.getRenderProperty(TextComponent.PROPERTY_EDITABLE))) {
                 clientUpdateManager.setComponentProperty(component, TextComponent.TEXT_CHANGED_PROPERTY, newValue);
-            }
+            //}
         }
     }
 }

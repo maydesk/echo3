@@ -50,6 +50,7 @@ implements Serializable {
     public static final String IDENTIFIER_CHANGED_PROPERTY = "identifier";
     public static final String MODEL_INDEX_CHANGED_PROPERTY = "modelIndex";
     public static final String WIDTH_CHANGED_PROPERTY = "width";
+    public static final String VISIBLE_CHANGED_PROPERTY = "visible";
     
     private Extent width;
     private TableCellRenderer cellRenderer;
@@ -58,44 +59,60 @@ implements Serializable {
     private int modelIndex;
     private Object identifier;
     private PropertyChangeSupport pcs = new PropertyChangeSupport(this);
+    private boolean visible;
     
     /**
      * Creates a <code>TableColumn</code> with the specified model index, 
-     * undefined width, and undefined cell and header renderers.
+     * undefined visibile, undefined width, and undefined cell and header renderers.
      *
      * @param modelIndex the column index of model data visualized by this 
      *        column
      */
     public TableColumn(int modelIndex) {
-        this(modelIndex, null, null, null);
+        this(modelIndex, true, null, null, null);
     }
     
     /**
-     * Creates a TableColumn with the specified model index and width, 
+     * Creates a <code>TableColumn</code> with the specified model index, visible,
+     * undefined width, and undefined cell and header renderers.
+     *
+     * @param modelIndex the column index of model data visualized by this 
+     *        column
+     * @param visible if the column is visible or not
+     */
+    public TableColumn(int modelIndex, boolean visible) {
+        this(modelIndex, visible, null, null, null);
+    }
+    
+    /**
+     * Creates a TableColumn with the specified model index visible, and width, 
      * and undefined cell and header renderers.
      * 
      * @param modelIndex the column index of model data visualized by this 
      *        column
+     * @param visible if the column is visible or not
      * @param width the column width
      */
-    public TableColumn(int modelIndex, Extent width) {
-        this(modelIndex, width, null, null);
+    public TableColumn(int modelIndex, boolean visible, Extent width) {
+        this(modelIndex, visible, width, null, null);
     }
 
     /**
-     * Creates a TableColumn with the specified model index, width, 
+     * Creates a TableColumn with the specified model index, visible, width,
      * and cell and header renderers.
      * 
      * @param modelIndex the column index of model data visualized by this 
      *        column
+     * @param visible if the column is visible or not
      * @param width the column width
      * @param cellRenderer the renderer to use for rendering model values
      * @param headerRenderer the renderer to use for rendering the header cell
      */
-    public TableColumn(int modelIndex, Extent width, TableCellRenderer cellRenderer, TableCellRenderer headerRenderer) {        
+    public TableColumn(int modelIndex, boolean visible, Extent width, TableCellRenderer cellRenderer, TableCellRenderer headerRenderer) {        
         super();
         
         this.modelIndex = modelIndex;
+        this.visible = visible;
         this.width = width;
         setCellRenderer(cellRenderer);
         setHeaderRenderer(headerRenderer);
@@ -180,6 +197,15 @@ implements Serializable {
     public Extent getWidth() {
         return width;
     }
+
+    /**
+     * Returns the visibility of the column
+     *
+     * @return true if the column is visible and else if not
+     */
+    public boolean isVisible() {
+        return visible;
+    }
     
     /**
      * Removes a <code>PropertyChangeListener</code> from being notified
@@ -258,6 +284,17 @@ implements Serializable {
         int oldValue = modelIndex;
         modelIndex = newValue;
         pcs.firePropertyChange(MODEL_INDEX_CHANGED_PROPERTY, oldValue, newValue);
+    }
+
+    /**
+     * Sets the visibility of the column.
+     *
+     * @param visible the new visibility
+     */
+    public void setVisible(boolean newValue) {
+        boolean oldValue = visible;
+        visible = newValue;
+        pcs.firePropertyChange(VISIBLE_CHANGED_PROPERTY, oldValue, newValue);
     }
     
     /**

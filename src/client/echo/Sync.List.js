@@ -236,6 +236,13 @@ Echo.Sync.ListComponent = Core.extend(Echo.Render.ComponentSync, {
         } else {
             this._renderMainAsSelect(update, parentElement);
         }
+
+        var toolTipText = this.component.render("toolTipText");
+        if( toolTipText )
+        {
+          this._div.title = toolTipText;
+          this._element.title = toolTipText;
+        }
     },
 
     /** @see Echo.Render.ComponentSync#renderDisplay */
@@ -430,7 +437,7 @@ Echo.Sync.ListComponent = Core.extend(Echo.Render.ComponentSync, {
     _renderSelection: function() {
         var selection = this._getSelection(),
             i;
-        
+
         if (this._alternateRender) {
             if (this._hasRenderedSelectedItems) {
                 var items = this.component.get("items");

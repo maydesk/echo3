@@ -186,6 +186,25 @@ Echo.Render = {
     },
     
     /**
+     * Notifies child components that the parent component is moving.
+     * At this point the parent component is on the screen
+     * (the parent element is part of the DOM hierarchy).
+     * Child components (and their descendants) will be notified by having 
+     * their renderDisplay() implementations invoked.
+     * Note that the parent WILL NOT have its renderDisplay() method
+     * invoked.
+     * <p>
+     * If your component requires virtual positioning (for IE6) you should invoke
+     * this method after informing the virtual positioning system to recalculate
+     * the size of your component.
+     * 
+     * @param {Echo.Component} parent the component whose size changed
+     */
+    notifyMove: function(parent) {
+        Echo.Render._doRenderDisplay(parent, false);
+    },
+
+    /**
      * Invokes renderDispose() on all removed children and descendants found in the specified update.
      * 
      * @param {Echo.Update.ComponentUpdate} update the update
@@ -234,19 +253,25 @@ Echo.Render = {
             updates[i].renderContext = {};
         
             peer = updates[i].parent.peer;
-            if (peer == null && updates[i].parent.componentType == "Root") {
-                Echo.Render._loadPeer(client, updates[i].parent);
+            if (peer == null) {
+                if (updates[i].parent.componentType == "Root") {
+					Echo.Render._loadPeer(client, updates[i].parent); 
+                }
+                else {
+					// If the peer is not loaded, ignore update!
+					// Component may not be rendered!
+					updates[i].markAsProcessed();
+					updates[i] = null;
+                }
             }
         }
     
         // Remove Phase: Invoke renderDispose on all updates.
         for (i = updates.length - 1; i >= 0; --i) {
-            if (updates[i] == null) {
-                // Skip removed updates.
-                continue;
+            if (updates[i] != null && !updates[i].isProcessed()) {
+				peer = updates[i].parent.peer;
+				Echo.Render._processDispose(updates[i]);
             }
-            peer = updates[i].parent.peer;
-            Echo.Render._processDispose(updates[i]);
         }
         
         // Profiling: Mark completion of remove phase. 
@@ -256,7 +281,7 @@ Echo.Render = {
         
         // Update Phase: Invoke renderUpdate on all updates.
         for (i = 0; i < updates.length; ++i) {
-            if (updates[i] == null) {
+            if (updates[i] == null || updates[i].isProcessed()) {
                 // The update has been removed, skip it.
                 continue;
             }
@@ -266,12 +291,15 @@ Echo.Render = {
             
             // Perform update by invoking peer's renderUpdate() method.
             var fullRender = peer.renderUpdate(updates[i]);
-            
+            updates[i].parent.fireEvent({type: "updated", source: updates[i].parent, data: updates[i]});
+
             // If the update required re-rendering descendants of the updated component,
             // null-out any pending updates to descendant components.
             if (fullRender) {
                 for (j = i + 1; j < updates.length; ++j) {
                     if (updates[j] != null && updates[i].parent.isAncestorOf(updates[j].parent)) {
+                        updates[j].parent.fireEvent({type: "updated", source: updates[j].parent, data: updates[j]});
+						updates[j].markAsProcessed();
                         updates[j] = null;
                     }
                 }
@@ -292,7 +320,7 @@ Echo.Render = {
         // This is done to avoid invoking renderDisplay() multiple times on a single component during a single rendering.
         var displayed = [];
         for (i = 0; i < updates.length; ++i) {
-            if (updates[i] == null) {
+            if (updates[i] == null || updates[i].isProcessed()) {
                 // Skip removed updates.
                 continue;
             }
@@ -336,7 +364,12 @@ Echo.Render = {
         // Clear disposed component list.
         Echo.Render._disposedComponents = null;
         
-        // Inform UpdateManager that all updates have been completed.
+        // Inform UpdateManager that updates from current invocation have been completed.
+		for (var i in updates) {
+			if (updates[i] != null) {
+				updates[i].markAsProcessed();
+			}
+		}
         updateManager.purge();
         
         // Perform focus update.
@@ -766,7 +799,7 @@ Echo.Render.ComponentSync = Core.extend({
         /**
          * (Optional) Invoked when the component has been added (or-readded) to the hierarchy and first appears
          * on screen, and when ancestors of the component (or the containing window) have
-         * resized.
+         * resized or they moveing.
          * 
          * @function
          */

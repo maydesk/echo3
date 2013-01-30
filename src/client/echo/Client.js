@@ -176,6 +176,8 @@ Echo.Client = Core.extend({
      */
     _failed: false,
 
+    _removeInputRestrictionListener: null,
+
     /**
      * Creates a new Client instance.  Derived classes must invoke.
      */
@@ -542,7 +544,7 @@ Echo.Client = Core.extend({
             // If key event is not a keypress, translate value from event and additionally store in _lastKeyCode property.
             keyCode = this._lastKeyCode = Core.Web.Key.translateKeyCode(e.keyCode);
         }
-        
+
         if (!up) {
             if (keyCode == 8) {
                 // Prevent backspace from navigating to previous page.
@@ -551,15 +553,18 @@ Echo.Client = Core.extend({
                     Core.Web.DOM.preventEventDefault(e);
                 }
             } else if (!press && keyCode == 9) {
-                // Process tab keydown event: focus next component in application, prevent default browser action.
-                this.application.focusNext(e.shiftKey);
-                Core.Web.DOM.preventEventDefault(e);
+                Core.Web.Event.add(this.domainElement, "focus", this._processFocus, true);
             }
         
             if (press && Core.Web.Env.QUIRK_KEY_PRESS_FIRED_FOR_SPECIAL_KEYS && !e.charCode) {
                 // Do nothing in the event no char code is provided for a keypress.
                 return true;
             }
+        } else if (keyCode == 9) {
+                Core.Web.Event.remove(this.domainElement, "focus", this._processFocus, true);
+                // Process tab keyup event: focus next component in application
+                if (!component || this._keyFocusedComponentId == component.renderId)
+                  this.application.focusNext(e.shiftKey);
         }
             
         if (!component) {
@@ -600,6 +605,9 @@ Echo.Client = Core.extend({
         return true;
     },
 
+    _processFocus: function() {
+        return false;
+    },
     /**
      * Processes updates to the component hierarchy.
      * Invokes <code>Echo.Render.processUpdates()</code>.
@@ -640,6 +648,14 @@ Echo.Client = Core.extend({
         this._inputRestrictionListeners[component.renderId] = l;
     },
     
+    registerRemoveInputRestrictionListener: function(l) {
+        this._removeInputRestrictionListener = l;
+    },
+
+    hasRestrictionListener: function(component) {
+      return this._inputRestrictionListeners && this._inputRestrictionListeners[component.renderId] != undefined;
+    },
+
     /**
      * Removes an input restriction.
      *
@@ -668,6 +684,12 @@ Echo.Client = Core.extend({
                 for (var x in listeners) {
                     listeners[x]();
                 }
+            }
+            var rem_listener = this._removeInputRestrictionListener;
+            if( rem_listener != null )
+            {
+              this._removeInputRestrictionListener = null;
+              rem_listener();
             }
         }
     },

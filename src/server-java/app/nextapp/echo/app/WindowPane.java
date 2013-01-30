@@ -118,6 +118,16 @@ implements FloatingPane, ModalSupport, PaneContainer {
      */
     private boolean modal = false;
     
+    private static final class MaximizedState
+    {
+      final Extent x, y, width, height;
+      MaximizedState(Extent _x, Extent _y, Extent w, Extent h) { x = _x; y = _y; width = w; height = h; }
+      public String toString() { return x +":"+y +":"+width +":"+height; }
+    }
+
+    private MaximizedState  _preMaximizedState = null;
+    private static final Extent PERCENT_100 = new Extent(100, Extent.PERCENT);
+
     /**
      * Creates a  new <code>WindowPane</code>.
      */    
@@ -1113,15 +1123,26 @@ implements FloatingPane, ModalSupport, PaneContainer {
     }
     
     /**
-     * Processes a user request to maximize the window (via the close button).
-     * Performs no operation by default.  The client is responsible for configuring the window appropriately.
+     * Processes a user request to maximize the window (via the maximize button).
      */
     public void userMaximize() {
+        if ( getWidth().equals(PERCENT_100) && getHeight().equals(PERCENT_100) ) {
+            if (_preMaximizedState != null) {
+                setWidth(this._preMaximizedState.width);
+                setHeight(this._preMaximizedState.height);
+                setPositionX(this._preMaximizedState.x);
+                setPositionY(this._preMaximizedState.y);
+            }
+        } else {
+            _preMaximizedState = new MaximizedState( getPositionX(), getPositionY(), getWidth(), getHeight() );
+            setWidth(PERCENT_100);
+            setHeight(PERCENT_100);
+        }
         fireWindowMaximized();
     }
     
     /**
-     * Processes a user request to minimize the window (via the close button).
+     * Processes a user request to minimize the window (via the minimize button).
      * Sets the window invisible.
      */
     public void userMinimize() {

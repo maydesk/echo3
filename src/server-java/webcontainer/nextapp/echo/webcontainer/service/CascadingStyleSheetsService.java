@@ -26,67 +26,52 @@
  * the provisions above, a recipient may use your version of this file under
  * the terms of any one of the MPL, the GPL or the LGPL.
  */
-
 package nextapp.echo.webcontainer.service;
 
-
-import java.io.IOException;
-
-import nextapp.echo.webcontainer.Connection;
 import nextapp.echo.webcontainer.ContentType;
-import nextapp.echo.webcontainer.Service;
+import nextapp.echo.webcontainer.util.Resource;
 
 /**
- * Abstract base service for handling server poll requests to determine if any
- * asynchronous operations affecting a <code>UserInstance</code> have been
- * performed since the last server interaction, such that the client might
- * resynchronize with the server.
- * <p>
- * An instance of this service must be registered with the 
- * <code>ServiceRegistry</code> if asynchronous polling is required.
+ * A service which renders <code>CSS</code> resource files.
+ * 
+ * @author sieskei (XSoft Ltd.)
  */
-public class AsyncMonitorService 
-implements Service {
+public class CascadingStyleSheetsService extends DefaultStringVersionService {
     
     /**
-     * Singleton instance.
-     */
-    public static final Service INSTANCE = new AsyncMonitorService();
-
-    /**
-     * Asynchronous monitoring service identifier.
-     */
-    public static final String SERVICE_ID = "Echo.AsyncMonitor";
-    
-    /**
-     * The request-sync attribute in async-monitor tag.
-     */
-    public static final String REQUEST_SYNC_ATTR = "request-sync";
-    
-    /**
-     * Private constructor: use singleton <code>INSTANCE</code>.
-     */
-    private AsyncMonitorService() { }
-    
-    /**
-     * @see Service#getId()
-     */
-    public String getId() {
-        return SERVICE_ID;
+     * Creates a new <code>CascadingStyleSheetsService</code> based on the content in
+     * the specified <code>CLASSPATH</code> resource. A runtime exception will
+     * be thrown in the event the resource does not exist (it generally should
+     * not be caught).
+     * 
+     * Please Note that all urls in the StyleSheet must be relative to the
+     * Servlet location when this method is used.
+     * 
+     * @param id the <code>Service</code> identifier
+     * @param resourceName the path to the content resource in the <code>CLASSPATH</code>
+     * @return the created <code>CascadingStyleSheetsService</code>
+     */  
+    public static CascadingStyleSheetsService forResource(String id, String resourceName) {
+        String content = Resource.getResourceAsString(resourceName);
+        return new CascadingStyleSheetsService(id, content);
     }
     
     /**
-     * @see Service#getVersion()
+     * Creates a new <code>CascadingStyleSheetsService</code>.
+     * 
+     * @param id the <code>Service</code> id
+     * @param content the <code>CSS content</code>
      */
-    public int getVersion() {
-        return DO_NOT_CACHE;
+    public CascadingStyleSheetsService(String id, String content) {
+        super(id, content);
     }
+  
 
     /**
-     * @see Service#service(nextapp.echo.webcontainer.Connection)
+     * @see DefaultStringVersionService#getContnentType()
      */
-    public void service(Connection conn) throws IOException {
-        conn.setContentType(ContentType.TEXT_XML);
-        conn.getWriter().write("<async-monitor " + REQUEST_SYNC_ATTR + "=\"" + Boolean.toString(conn.getUserInstance().getApplicationInstance().hasQueuedTasks()) + "\"/>");
+    @Override
+    ContentType getContnentType() {
+        return ContentType.TEXT_CSS;
     }
 }

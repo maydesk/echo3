@@ -447,20 +447,11 @@ public abstract class WebContainerServlet extends HttpServlet {
             service.service(conn);
             
         } catch (ServletException ex) {
-            if (conn != null) {
-                conn.disposeUserInstance();
-            }
-            processError(request, response, ex);
+            processError(conn, request, response, ex);
         } catch (IOException ex) {
-            if (conn != null) {
-                conn.disposeUserInstance();
-            }
-            processError(request, response, ex);
+            processError(conn, request, response, ex);
         } catch (RuntimeException ex) {
-            if (conn != null) {
-                conn.disposeUserInstance();
-            }
-            processError(request, response, ex);
+            processError(conn, request, response, ex);
         } finally {
             activeConnection.set(null);
         }
@@ -475,8 +466,16 @@ public abstract class WebContainerServlet extends HttpServlet {
      * @throws ServletException
      * @throws IOException
      */
-    private void processError(HttpServletRequest request, HttpServletResponse response, Exception ex) 
-    throws ServletException, IOException {
+    private void processError(Connection conn, HttpServletRequest request, HttpServletResponse response, Exception ex) 
+    		throws ServletException, IOException {
+        if (conn != null) {
+        	try {
+        		conn.disposeUserInstance();
+        	} catch (Exception e) {
+        		e.printStackTrace();
+        	}
+        }
+
         String exceptionId = Uid.generateUidString();
         Log.log("Server Exception. ID: " + exceptionId, ex);
         response.setContentType("text/plain");

@@ -39,6 +39,7 @@ import nextapp.echo.app.util.Uid;
  * @author Miro Yozov
  */
 public abstract class ApplicationWebSocket {
+	
     private static int SYNC_CLOSE_CODE = 8807;
     private static int DISPOSE_CLOSE_CODE = 8806;
     
@@ -65,8 +66,7 @@ public abstract class ApplicationWebSocket {
     final void sendMessage(String message) {
         try {
             conn.sendMessage(message);
-        }
-        catch (IOException ex) {
+        } catch (IOException ex) {
             Log.log("Server Exception. ID: " + Uid.generateUidString(), ex);
             conn.close(-1, "fatal");
             throw new RuntimeException(ex);

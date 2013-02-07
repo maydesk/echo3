@@ -1490,7 +1490,7 @@ Core.Web.WebSocketConnection = Core.extend({
             return;
         }
         
-        this._webSocket = new WebSocket(this._url, this._protocols);
+        this._webSocket = new WebSocket(this._url);  //, this._protocols);  <- not working on iOS 5.1!
         this._webSocket.onopen = this._eventsHandler;
         this._webSocket.onclose = this._eventsHandler;
         this._webSocket.onerror = this._eventsHandler;

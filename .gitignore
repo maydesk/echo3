@@ -7,3 +7,4 @@ custom-ant.properties
 .project
 .settings
 bin
+tmp

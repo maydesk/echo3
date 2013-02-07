@@ -12,7 +12,7 @@ configurations {
 	testCompile
 }
 
- repositories {
+repositories {
 	mavenCentral()
 }
     
@@ -30,10 +30,6 @@ sourceSets {
 			srcDir 'src/server-java/webcontainer-test'
 		}
 	}
-}
-
-repositories {
-	mavenCentral()
 }
 
 dependencies {

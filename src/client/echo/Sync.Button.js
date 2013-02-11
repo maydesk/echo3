@@ -192,8 +192,8 @@ Echo.Sync.Button = Core.extend(Echo.Render.ComponentSync, {
                     Core.method(this, this._processRolloverExit), false);
         }
         if (this.component.render("pressedEnabled")) {
-            var downEvent = isIPad ? 'touchstart' : 'mousedown';
-            var upEvent = isIPad ? 'touchend' : 'mouseup';        
+            var downEvent = this._isIPad ? 'touchstart' : 'mousedown';
+            var upEvent = this._isIPad ? 'touchend' : 'mouseup';        
             Core.Web.Event.add(this.div, downEvent, Core.method(this, this._processPress), false);
             Core.Web.Event.add(this.div, upEvent, Core.method(this, this._processRelease), false);
         }

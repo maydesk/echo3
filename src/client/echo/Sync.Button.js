@@ -77,10 +77,17 @@ Echo.Sync.Button = Core.extend(Echo.Render.ComponentSync, {
      * @type Boolean
      */
     _focused: false,
+   
+    /**
+     * Is the client an iPad?
+     * @type Boolean
+     */
+    _isIPad: false,
     
     /** Creates a new Echo.Sync.Button */
     $construct: function() { 
         this._processInitEventRef = Core.method(this, this._processInitEvent);
+        this._isIPad = navigator.userAgent.match(/iPad/i) != null;
     },
     
     $virtual: {
@@ -185,8 +192,10 @@ Echo.Sync.Button = Core.extend(Echo.Render.ComponentSync, {
                     Core.method(this, this._processRolloverExit), false);
         }
         if (this.component.render("pressedEnabled")) {
-            Core.Web.Event.add(this.div, "mousedown", Core.method(this, this._processPress), false);
-            Core.Web.Event.add(this.div, "mouseup", Core.method(this, this._processRelease), false);
+            var downEvent = isIPad ? 'touchstart' : 'mousedown';
+            var upEvent = isIPad ? 'touchend' : 'mouseup';        
+            Core.Web.Event.add(this.div, downEvent, Core.method(this, this._processPress), false);
+            Core.Web.Event.add(this.div, upEvent, Core.method(this, this._processRelease), false);
         }
         Core.Web.Event.add(this.div, "focus", Core.method(this, this._processFocus), false);
         Core.Web.Event.add(this.div, "blur", Core.method(this, this._processBlur), false);

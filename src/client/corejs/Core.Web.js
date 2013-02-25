@@ -1666,6 +1666,10 @@ Core.Web.HttpConnection = Core.extend({
             }
         };
         
+	//allow XSS for embedded mode
+	//see http://software.dzhuvinov.com/cors-filter-tips.html
+	this._xmlHttpRequest.withCredentials = true;
+        
         this._xmlHttpRequest.open(this._method, this._url, true);
 
         if (usingActiveXObject || this._xmlHttpRequest.setRequestHeader) {

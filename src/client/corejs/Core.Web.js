@@ -1668,8 +1668,14 @@ Core.Web.HttpConnection = Core.extend({
         
 	//allow XSS for embedded mode
 	//see http://software.dzhuvinov.com/cors-filter-tips.html
-	this._xmlHttpRequest.withCredentials = true;
-        
+	if ("withCredentials" in this._xmlHttpRequest) {
+		var isIPad = navigator.userAgent.match(/iPad/i) != null;
+		if (!isIPad) {
+			//does not work on iPad (tested with iPad 1 & iOS 5.1)
+			this._xmlHttpRequest.withCredentials = true;
+		}
+	}
+		
         this._xmlHttpRequest.open(this._method, this._url, true);
 
         if (usingActiveXObject || this._xmlHttpRequest.setRequestHeader) {

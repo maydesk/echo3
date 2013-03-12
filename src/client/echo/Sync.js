@@ -1914,3 +1914,44 @@ Echo.Sync.RoundedCorner = {
 		if (ci.left > 0) element.style["border-bottom-left-radius"] = ci.left + "px";        
     }
 };
+
+Echo.Sync.Positionable = { 
+
+    /**
+     * Renders the position of an element.
+     * 
+     * @param {#Component} component the component
+     * @param {Element} element the target element
+     */
+    render: function(component, element) {
+		var positioning = component.render("positioning");
+		if (positioning === "STATIC") {
+			element.style.position = "static";
+		} else if (positioning === "ABSOLUTE") {
+			element.style.position = "absolute";
+		} else if (positioning === "FIXED") {
+			element.style.position = "fixed";
+		} else {
+			element.style.position = "relative";
+		}
+		
+		var top = component.render("top");
+		if (top !== undefined) element.style.top = top + "px";
+		
+		var right = component.render("right");
+		if (right !== undefined) element.style.right = right + "px";
+		
+		var bottom = component.render("bottom");
+		if (bottom !== undefined) element.style.bottom = bottom + "px";
+		
+		var left = component.render("left");
+		if (left !== undefined) element.style.left = left + "px";
+		
+		var zIndex = component.render("zindex");
+		if (zIndex) {
+			element.style.zIndex = zIndex;
+		} else {
+			element.style.zIndex = 0;
+		}
+	}
+};

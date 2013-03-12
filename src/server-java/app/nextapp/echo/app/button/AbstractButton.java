@@ -44,12 +44,13 @@ import nextapp.echo.app.Insets;
 import nextapp.echo.app.event.ActionEvent;
 import nextapp.echo.app.event.ActionListener;
 import nextapp.echo.app.event.EventListenerList;
+import nextapp.echo.webcontainer.sync.component.Positionable;
 
 /**
  * An abstract base class for button components.  Provides basic properties, a
  * model, and event handling facilities.
  */
-public abstract class AbstractButton extends Component {
+public abstract class AbstractButton extends Component implements Positionable {
     
     /** Serial Version UID. */
     private static final long serialVersionUID = 20070101L;
@@ -1080,4 +1081,64 @@ public abstract class AbstractButton extends Component {
     public void setWidth(Extent newValue) {
         set(PROPERTY_WIDTH, newValue);
     }
+    
+	@Override
+	public void clearPositioning() {
+		set(Positionable.STYLE_BOTTOM, null);
+		set(Positionable.STYLE_TOP, null);
+		set(Positionable.STYLE_RIGHT, null);
+		set(Positionable.STYLE_LEFT, null);	
+	}
+
+	@Override
+	public Integer getBottom() {
+		return (Integer)get(Positionable.STYLE_BOTTOM);
+	}
+
+	@Override
+	public Integer getLeft() {
+		return (Integer)get(Positionable.STYLE_LEFT);
+	}
+
+	@Override
+	public POSITIONING getPositioning() {
+		String posString = (String)get(Positionable.STYLE_POSITIONING);
+		if (posString == null) return POSITIONING.FLOW;
+		return POSITIONING.valueOf(posString);
+	}
+
+	@Override
+	public Integer getRight() {
+		return (Integer)get(Positionable.STYLE_RIGHT);
+	}
+
+	@Override
+	public Integer getTop() {
+		return (Integer)get(Positionable.STYLE_TOP);
+	}
+
+	@Override
+	public void setBottom(Integer newValue) {
+		set(Positionable.STYLE_BOTTOM, newValue);
+	}
+
+	@Override
+	public void setLeft(Integer newValue) {
+		set(Positionable.STYLE_LEFT, newValue);
+	}
+
+	@Override
+	public void setPositioning(POSITIONING newPositioning) {
+		set(Positionable.STYLE_POSITIONING, newPositioning.name());
+	}
+
+	@Override
+	public void setRight(Integer newValue) {
+		set(Positionable.STYLE_RIGHT, newValue);
+	}
+
+	@Override
+	public void setTop(Integer newValue) {
+		set(Positionable.STYLE_TOP, newValue);
+	}
 }

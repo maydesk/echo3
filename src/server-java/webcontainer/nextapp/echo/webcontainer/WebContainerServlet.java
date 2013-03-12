@@ -47,6 +47,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -422,6 +423,15 @@ public abstract class WebContainerServlet extends HttpServlet {
         return initStyleSheets == null ? null : Collections.unmodifiableCollection(initStyleSheets).iterator();
     }
 
+	public Map<String, String> getLinkElements() {
+		return linkElements;
+	}
+	
+	public Map<String, String> getMetaElements() {
+		return metaElements;
+	}
+
+	
     /**
      * Returns the instance operating mode of the application, determining how the application will perform if it
      * is visited by multiple browser windows.
@@ -464,9 +474,6 @@ public abstract class WebContainerServlet extends HttpServlet {
             if ("EMBED".equals(serviceId)) {
                 UserInstanceContainer.newInstance(conn);
                 service = BootService.SERVICE;
-            } else if (service == NewInstanceService.INSTANCE) {
-           		conn.setProperty("linkElements", linkElements);
-           		conn.setProperty("metaElements", metaElements);
             }
             
             if (service == null) {

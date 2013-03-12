@@ -103,6 +103,7 @@ implements Service {
         final String userAgent = conn.getRequest().getHeader("User-Agent");
         final boolean IEBrowser = USER_AGENT_MSIE.matcher(userAgent).find();
         final Document document;
+        WebContainerServlet servlet = conn.getServlet();
                 
         if (userAgent != null && IEBrowser) {
             document = DomUtil.createDocument("html", HTML_4_01_TRANSITIONAL_PUBLIC_ID, HTML_4_STRICT_SYSTEM_ID, XHTML_1_0_NAMESPACE_URI);            
@@ -133,7 +134,7 @@ implements Service {
         }
 
         //add custom meta elements (see also WebContainerServlet.java)
-        Map<String, String> metaElements = (Map<String, String>)conn.getProperty("metaElements");
+        Map<String, String> metaElements = servlet.getMetaElements();;
         if (metaElements != null) {
         	for (String name : metaElements.keySet()) {
         		String content = metaElements.get(name);
@@ -159,8 +160,6 @@ implements Service {
         scriptElement.setAttribute("type", "text/javascript");
         scriptElement.setAttribute("src", userInstanceContainer.getServiceUri(BootService.SERVICE, null));
         headElement.appendChild(scriptElement);
-        
-        WebContainerServlet servlet = conn.getServlet();
         
         // Include application-provided initialization scripts.
         Iterator scriptIt = servlet.getInitScripts();
@@ -190,7 +189,7 @@ implements Service {
         }
         
         //add custom link elements (see also WebContainerServlet.java)
-        Map<String, String> linkElements = (Map<String, String>)conn.getProperty("linkElements");
+        Map<String, String> linkElements = servlet.getLinkElements();
         if (linkElements != null) {
         	for (String rel : linkElements.keySet()) {
         		String href = linkElements.get(rel);

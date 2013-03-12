@@ -338,6 +338,9 @@ public abstract class WebContainerServlet extends HttpServlet {
      * @return The service corresponding to the specified Id.
      */
     private static Service getService(String id, boolean hasInstance) {
+        Service service;
+        
+        service = services.get(id);
         if (id == null) {
             if (hasInstance) {
                 id = SERVICE_ID_DEFAULT;
@@ -350,7 +353,8 @@ public abstract class WebContainerServlet extends HttpServlet {
             }
         }
         
-        Service service = services.get(id);
+        service = services.get(id);
+
         if (service == null) {
             if (SERVICE_ID_DEFAULT.equals(id)) {
                 throw new RuntimeException("Service not registered: SERVICE_ID_DEFAULT");
@@ -360,6 +364,10 @@ public abstract class WebContainerServlet extends HttpServlet {
                 throw new RuntimeException("Service not registered: SERVICE_ID_SESSION_EXPIRED");
             }
         }
+<<<<<<< HEAD
+=======
+        
+>>>>>>> branch 'V3.1' of https://github.com/maydesk/echo3.git
         return service;
     }
     

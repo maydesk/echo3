@@ -359,7 +359,7 @@ public abstract class WebContainerServlet extends HttpServlet {
             } else if (SERVICE_ID_SESSION_EXPIRED.equals(id)) {
                 throw new RuntimeException("Service not registered: SERVICE_ID_SESSION_EXPIRED");
             }
-        }        
+        }
         return service;
     }
     

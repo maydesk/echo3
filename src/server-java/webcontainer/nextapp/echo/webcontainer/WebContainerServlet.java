@@ -44,6 +44,7 @@ import nextapp.echo.webcontainer.service.WindowHtmlService;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 
@@ -253,7 +254,20 @@ public abstract class WebContainerServlet extends HttpServlet {
     private List initStyleSheets = null;
     
     private WebSocketConnectionHandler wsHandler = null;
+
+    /** 
+     * Optional link element tags to be added to the initial html fragment 
+     * @see also WindowHtmlService.java 
+     */ 
+    private HashMap<String, String> linkElements = new HashMap<String, String>();
     
+    /** 
+     * Optional meta element tags to be added to the initial html fragment
+     * @see also WindowHtmlService.java 
+     */
+    private HashMap<String, String> metaElements = new HashMap<String, String>();
+    
+
     /**
      * Default constructor.
      */
@@ -281,7 +295,34 @@ public abstract class WebContainerServlet extends HttpServlet {
         services.add(service);
         initScripts.add(service);
     }
-    
+
+    /**
+     * Adds a Link element to the initial html fragment
+     * 
+     * Examples: 
+     * <link rel="apple-touch-icon" href="./img/apple-touch-icon.png">
+     * <link rel="apple-touch-startup-image" href="./img/ipad-startup.png">
+     *        
+     * @param rel the name of the link
+     * @param href the reference (URL) of the link
+     */
+    protected void addLinkElement(String rel, String href) {
+    	linkElements.put(rel, href);
+    }
+    		
+    /**
+     * Adds a Meta element to the initial html fragment
+     * 
+     * Example: 
+     * <meta name="apple-mobile-web-app-capable" content="yes">
+     *        
+     * @param name the key of the meta element
+     * @param content the value of the meta element
+     */
+    protected void addMetaElement(String name, String content) {
+    	metaElements.put(name, content);
+    }
+
     /**
      * Adds a CSS style sheet to be loaded at initialization.
      * 
@@ -419,9 +460,13 @@ public abstract class WebContainerServlet extends HttpServlet {
             String serviceId = request.getParameter(SERVICE_ID_PARAMETER);
             Service service = getService(serviceId, conn.getUserInstanceContainer() != null);
             
+            //experimental: Using Echo as embedded service
             if ("EMBED".equals(serviceId)) {
                 UserInstanceContainer.newInstance(conn);
                 service = BootService.SERVICE;
+            } else if (service == NewInstanceService.INSTANCE) {
+           		conn.setProperty("linkElements", linkElements);
+           		conn.setProperty("metaElements", metaElements);
             }
             
             if (service == null) {

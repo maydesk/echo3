@@ -31,24 +31,25 @@ package nextapp.echo.webcontainer.service;
 
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Pattern;
 
 import javax.xml.transform.OutputKeys;
-
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.Text;
-import org.xml.sax.SAXException;
 
 import nextapp.echo.app.ApplicationInstance;
 import nextapp.echo.app.util.DomUtil;
 import nextapp.echo.webcontainer.Connection;
 import nextapp.echo.webcontainer.ContentType;
 import nextapp.echo.webcontainer.Service;
-import nextapp.echo.webcontainer.UserInstanceContainer;
 import nextapp.echo.webcontainer.SynchronizationException;
+import nextapp.echo.webcontainer.UserInstanceContainer;
 import nextapp.echo.webcontainer.WebContainerServlet;
+
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Text;
+import org.xml.sax.SAXException;
 
 /**
  * Completely re-renders a browser window.
@@ -131,6 +132,18 @@ implements Service {
             headElement.appendChild(metaCompElement);
         }
 
+        //add custom meta elements (see also WebContainerServlet.java)
+        Map<String, String> metaElements = (Map<String, String>)conn.getProperty("metaElements");
+        if (metaElements != null) {
+        	for (String name : metaElements.keySet()) {
+        		String content = metaElements.get(name);
+                Element metaCustomElement = document.createElement("meta");
+                metaCustomElement.setAttribute("name", name);
+                metaCustomElement.setAttribute("content", content);
+                headElement.appendChild(metaCustomElement);        		
+        	}        	
+        }
+        
         Element titleElement = document.createElement("title");
         titleElement.appendChild(document.createTextNode(" "));
         headElement.appendChild(titleElement);
@@ -176,6 +189,18 @@ implements Service {
             }
         }
         
+        //add custom link elements (see also WebContainerServlet.java)
+        Map<String, String> linkElements = (Map<String, String>)conn.getProperty("linkElements");
+        if (linkElements != null) {
+        	for (String rel : linkElements.keySet()) {
+        		String href = linkElements.get(rel);
+                Element customLinkElement = document.createElement("link");
+                customLinkElement.setAttribute("rel", rel);
+                customLinkElement.setAttribute("href", href);
+                headElement.appendChild(customLinkElement);        		
+        	}        	
+        }
+
         Element bodyElement = document.createElement("body");
         bodyElement.setAttribute("id", "body");
         bodyElement.setAttribute("onload", "Echo.Boot.boot('" + userInstanceContainer.getServletUri() + "', '" + 

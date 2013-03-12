@@ -87,6 +87,7 @@ public abstract class AbstractButton extends Component {
     public static final String PROPERTY_PRESSED_FONT = "pressedFont";
     public static final String PROPERTY_PRESSED_FOREGROUND = "pressedForeground";
     public static final String PROPERTY_PRESSED_ICON = "pressedIcon";
+    public static final String PROPERTY_RADIUS = "radius";
     public static final String PROPERTY_ROLLOVER_BACKGROUND = "rolloverBackground";
     public static final String PROPERTY_ROLLOVER_BACKGROUND_IMAGE = "rolloverBackgroundImage";
     public static final String PROPERTY_ROLLOVER_BORDER = "rolloverBorder";
@@ -434,6 +435,15 @@ public abstract class AbstractButton extends Component {
      */
     public ImageReference getPressedIcon() {
         return (ImageReference) get(PROPERTY_PRESSED_ICON);
+    }
+
+    /**
+     * Returns the radius of the corners
+     * 
+     * @return the radius(es) as insets
+     */
+    public Insets getRadius() {
+        return (Insets) get(PROPERTY_RADIUS);
     }
 
     /**
@@ -938,6 +948,15 @@ public abstract class AbstractButton extends Component {
      */
     public void setPressedIcon(ImageReference newValue) {
         set(PROPERTY_PRESSED_ICON, newValue);
+    }
+
+    /**
+     * Sets the radius(es) of the corners
+     * 
+     * @param newValue the new margin
+     */
+    public void setRadius(Insets newValue) {
+        set(PROPERTY_RADIUS, newValue);
     }
 
     /**

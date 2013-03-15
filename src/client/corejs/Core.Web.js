@@ -1666,21 +1666,22 @@ Core.Web.HttpConnection = Core.extend({
             }
         };
         
-	//allow XSS for embedded mode
-	//see http://software.dzhuvinov.com/cors-filter-tips.html
-	if ("withCredentials" in this._xmlHttpRequest) {
-		var isIPad = navigator.userAgent.match(/iPad/i) != null;
-		if (!isIPad) {
-			//does not work on iPad (tested with iPad 1 & iOS 5.1)
-			this._xmlHttpRequest.withCredentials = true;
+		//allow XSS (cross-site-scripting) for embedded mode
+		//see http://software.dzhuvinov.com/cors-filter-tips.html
+		if ("withCredentials" in this._xmlHttpRequest) {
+			var isIPad = navigator.userAgent.match(/iPad/i) != null;
+			var isAndroid = navigator.userAgent.match(/Android/i) != null;
+			if (!isIPad && !isAndroid) {
+				//does not work on iPad (tested with iPad 1 & iOS 5.1) 
+				//and as Android App (but OK in regular Android browser window!) (tested on Nexus 7)
+				this._xmlHttpRequest.withCredentials = true;
+			}
 		}
-	}
-		
-        this._xmlHttpRequest.open(this._method, this._url, true);
-
-        if (usingActiveXObject || this._xmlHttpRequest.setRequestHeader) {
-            
-            // Set headers, if supplied.
+			
+		this._xmlHttpRequest.open(this._method, this._url, true);
+	
+		if (usingActiveXObject || this._xmlHttpRequest.setRequestHeader) {
+	    	// Set headers, if supplied.
             if (this._requestHeaders) {
                 for(var h in this._requestHeaders) {
                     try {
